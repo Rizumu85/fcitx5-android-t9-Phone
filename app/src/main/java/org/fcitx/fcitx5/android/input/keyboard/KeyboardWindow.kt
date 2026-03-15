@@ -68,7 +68,8 @@ class KeyboardWindow : InputWindow.SimpleInputWindow<KeyboardWindow>(), Essentia
     private val keyboards: HashMap<String, BaseKeyboard> by lazy {
         hashMapOf(
             TextKeyboard.Name to TextKeyboard(context, theme),
-            NumberKeyboard.Name to NumberKeyboard(context, theme)
+            NumberKeyboard.Name to NumberKeyboard(context, theme),
+            T9Keyboard.Name to T9Keyboard(context, theme)
         )
     }
     private var currentKeyboardName = ""
@@ -91,7 +92,8 @@ class KeyboardWindow : InputWindow.SimpleInputWindow<KeyboardWindow>(), Essentia
     // This will be called EXACTLY ONCE
     override fun onCreateView(): View {
         keyboardView = context.frameLayout(R.id.keyboard_view)
-        attachLayout(TextKeyboard.Name)
+        val initialLayout = if (useT9KeyboardLayout) T9Keyboard.Name else TextKeyboard.Name
+        attachLayout(initialLayout)
         return keyboardView
     }
 
@@ -117,15 +119,25 @@ class KeyboardWindow : InputWindow.SimpleInputWindow<KeyboardWindow>(), Essentia
     }
 
     fun switchLayout(to: String, remember: Boolean = true) {
-        val target = to.ifEmpty { lastSymbolType }
+        val defaultMainKeyboard = if (useT9KeyboardLayout) T9Keyboard.Name else TextKeyboard.Name
+        val target = when {
+            to.isNotEmpty() -> to
+            keyboards.containsKey(lastSymbolType) -> lastSymbolType
+            else -> defaultMainKeyboard
+        }
+        val resolvedTarget = if (target == TextKeyboard.Name && useT9KeyboardLayout) {
+            T9Keyboard.Name
+        } else {
+            target
+        }
         ContextCompat.getMainExecutor(service).execute {
-            if (keyboards.containsKey(target)) {
-                if (remember && target != TextKeyboard.Name) {
-                    lastSymbolType = target
+            if (keyboards.containsKey(resolvedTarget)) {
+                if (remember && resolvedTarget != TextKeyboard.Name && resolvedTarget != T9Keyboard.Name) {
+                    lastSymbolType = resolvedTarget
                 }
-                if (target == currentKeyboardName) return@execute
+                if (resolvedTarget == currentKeyboardName) return@execute
                 detachCurrentLayout()
-                attachLayout(target)
+                attachLayout(resolvedTarget)
                 if (windowManager.isAttached(this)) {
                     notifyBarLayoutChanged()
                 }
@@ -138,11 +150,13 @@ class KeyboardWindow : InputWindow.SimpleInputWindow<KeyboardWindow>(), Essentia
         }
     }
 
+    private val useT9KeyboardLayout by AppPrefs.getInstance().keyboard.useT9KeyboardLayout
+
     override fun onStartInput(info: EditorInfo, capFlags: CapabilityFlags) {
         val targetLayout = when (info.inputType and InputType.TYPE_MASK_CLASS) {
             InputType.TYPE_CLASS_NUMBER -> NumberKeyboard.Name
             InputType.TYPE_CLASS_PHONE -> NumberKeyboard.Name
-            else -> TextKeyboard.Name
+            else -> if (useT9KeyboardLayout) T9Keyboard.Name else TextKeyboard.Name
         }
         switchLayout(targetLayout, remember = false)
     }

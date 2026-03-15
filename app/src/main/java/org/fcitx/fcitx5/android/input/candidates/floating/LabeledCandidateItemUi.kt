@@ -11,6 +11,7 @@ import android.widget.TextView
 import androidx.core.text.buildSpannedString
 import androidx.core.text.color
 import org.fcitx.fcitx5.android.core.FcitxEvent
+import org.fcitx.fcitx5.android.data.prefs.AppPrefs
 import org.fcitx.fcitx5.android.data.theme.Theme
 import splitties.views.backgroundColor
 import splitties.views.dsl.core.Ui
@@ -22,6 +23,8 @@ class LabeledCandidateItemUi(
     setupTextView: TextView.() -> Unit
 ) : Ui {
 
+    private val useT9KeyboardLayout by AppPrefs.getInstance().keyboard.useT9KeyboardLayout
+
     override val root = textView {
         setupTextView(this)
     }
@@ -31,9 +34,12 @@ class LabeledCandidateItemUi(
         val fg = if (active) theme.genericActiveForegroundColor else theme.candidateTextColor
         val altFg = if (active) theme.genericActiveForegroundColor else theme.candidateCommentColor
         root.text = buildSpannedString {
-            color(labelFg) { append(candidate.label) }
+            // Hide label and comment in T9 mode for cleaner display
+            if (!useT9KeyboardLayout) {
+                color(labelFg) { append(candidate.label) }
+            }
             color(fg) { append(candidate.text) }
-            if (candidate.comment.isNotBlank()) {
+            if (!useT9KeyboardLayout && candidate.comment.isNotBlank()) {
                 append(" ")
                 color(altFg) { append(candidate.comment) }
             }

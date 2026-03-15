@@ -10,6 +10,7 @@ import android.view.ViewGroup
 import androidx.annotation.CallSuper
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.flexbox.FlexboxLayoutManager
+import org.fcitx.fcitx5.android.data.prefs.AppPrefs
 import org.fcitx.fcitx5.android.data.theme.Theme
 import org.fcitx.fcitx5.android.input.candidates.CandidateItemUi
 import org.fcitx.fcitx5.android.input.candidates.CandidateViewHolder
@@ -24,6 +25,8 @@ open class HorizontalCandidateViewAdapter(val theme: Theme) :
     init {
         setHasStableIds(true)
     }
+
+    private val useT9KeyboardLayout by AppPrefs.getInstance().keyboard.useT9KeyboardLayout
 
     var candidates: Array<String> = arrayOf()
         private set
@@ -53,11 +56,24 @@ open class HorizontalCandidateViewAdapter(val theme: Theme) :
         return CandidateViewHolder(ui)
     }
 
+    /**
+     * Strip comment (pinyin hint) from candidate text.
+     * The format is "text comment" where comment is separated by a space.
+     * For Chinese characters, we extract just the first characters before the space.
+     */
+    private fun stripComment(text: String): String {
+        if (!useT9KeyboardLayout) return text
+        // Find the first space that separates text from comment
+        val spaceIndex = text.indexOf(' ')
+        return if (spaceIndex > 0) text.substring(0, spaceIndex) else text
+    }
+
     @CallSuper
     override fun onBindViewHolder(holder: CandidateViewHolder, position: Int) {
         val text = candidates[position]
-        holder.ui.text.text = text
-        holder.text = text
+        val displayText = stripComment(text)
+        holder.ui.text.text = displayText
+        holder.text = text  // Keep original text for selection
         holder.idx = position
     }
 

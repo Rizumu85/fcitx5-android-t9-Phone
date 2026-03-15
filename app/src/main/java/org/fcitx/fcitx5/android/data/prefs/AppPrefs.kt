@@ -178,6 +178,8 @@ class AppPrefs(private val sharedPreferences: SharedPreferences) {
             "lang_switch_key_behavior",
             LangSwitchBehavior.Enumerate
         ) { showLangSwitchKey.getValue() }
+        val useT9KeyboardLayout =
+            switch(R.string.use_t9_keyboard_layout, "use_t9_keyboard_layout", false)
 
         val keyboardHeightPercent: ManagedPreference.PInt
         val keyboardHeightPercentLandscape: ManagedPreference.PInt
@@ -187,10 +189,10 @@ class AppPrefs(private val sharedPreferences: SharedPreferences) {
                 R.string.keyboard_height,
                 R.string.portrait,
                 "keyboard_height_percent",
-                30,
+                40,
                 R.string.landscape,
                 "keyboard_height_percent_landscape",
-                49,
+                45,
                 10,
                 90,
                 "%"
