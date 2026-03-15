@@ -1061,6 +1061,18 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
             return true
         }
 
+        // In English T9 mode, if there is a pending multi-tap character,
+        // the first backspace should only cancel that pending char (and its composing)
+        // instead of also deleting the previous committed character.
+        if (currentT9Mode == T9InputMode.ENGLISH &&
+            event.action == KeyEvent.ACTION_DOWN &&
+            multiTapPendingChar != null &&
+            (keyCode == KeyEvent.KEYCODE_DEL || keyCode == KeyEvent.KEYCODE_BACK)
+        ) {
+            cancelMultiTapChar()
+            return true
+        }
+
         val (mappedKeyCode, mappedEvent) = mapKeyEvent(keyCode, event)
         // request to show floating CandidatesView when pressing physical keyboard
         if (inputDeviceMgr.evaluateOnKeyDown(mappedEvent, this)) {
