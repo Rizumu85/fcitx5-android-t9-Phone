@@ -14,6 +14,7 @@ import org.fcitx.fcitx5.android.input.keyboard.CustomGestureView
 import org.fcitx.fcitx5.android.utils.alpha
 import org.fcitx.fcitx5.android.utils.pressHighlightDrawable
 import org.fcitx.fcitx5.android.utils.rippleDrawable
+import splitties.dimensions.dp
 import splitties.resources.drawable
 import splitties.views.dsl.constraintlayout.after
 import splitties.views.dsl.constraintlayout.before
@@ -43,7 +44,7 @@ class PickerTabsUi(override val ctx: Context, val theme: Theme) : Ui {
         var position: Int = -1
 
         val label = textView {
-            textSize = 16f // sp
+            textSize = 13f // sp
             typeface = Typeface.DEFAULT_BOLD
             setTextColor(theme.keyTextColor)
         }
@@ -93,7 +94,9 @@ class PickerTabsUi(override val ctx: Context, val theme: Theme) : Ui {
 
     private var onTabClick: (TabUi.(Int) -> Unit)? = null
 
-    override val root = constraintLayout { }
+    override val root = constraintLayout {
+        setPadding(dp(8), 0, dp(8), 0)
+    }
 
     fun setTabs(categories: List<PickerData.Category>) {
         tabs.forEach { root.removeView(it.root) }

@@ -30,8 +30,6 @@ class T9Keyboard(
     companion object {
         const val Name = "T9"
 
-        // 符号保持原样 0.15；表情 0.09、退格 0.11，固定和 0.6 → 空格 40%、回车 0.15 不变。
-        // [符号 0.15, 表情 0.09, 地球 0.1, 空格 0f, 退格 0.11, 回车 0.15]
         val Layout: List<List<KeyDef>> = listOf(
             listOf(
                 LayoutSwitchKey("符号", PickerWindow.Key.Symbol.name, 0.15f, KeyDef.Appearance.Variant.Alternative),

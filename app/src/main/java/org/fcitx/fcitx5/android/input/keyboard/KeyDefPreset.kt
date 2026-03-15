@@ -205,10 +205,6 @@ class LanguageKey(percentWidth: Float = 0.1f) : KeyDef(
     )
 )
 
-/**
- * @param percentWidth 0f = fill remaining row width (default for full keyboard);
- *        positive value = fixed fraction of row (e.g. 0.38f for T9 to match picker bottom row).
- */
 class SpaceKey(percentWidth: Float = 0f) : KeyDef(
     Appearance.Text(
         displayText = " ",
