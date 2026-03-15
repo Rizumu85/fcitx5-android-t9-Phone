@@ -33,6 +33,7 @@ import org.fcitx.fcitx5.android.input.broadcast.ReturnKeyDrawableComponent
 import org.fcitx.fcitx5.android.input.candidates.horizontal.HorizontalCandidateComponent
 import org.fcitx.fcitx5.android.input.keyboard.CommonKeyActionListener
 import org.fcitx.fcitx5.android.input.keyboard.KeyboardWindow
+import org.fcitx.fcitx5.android.input.keyboard.T9Keyboard
 import org.fcitx.fcitx5.android.input.picker.emojiPicker
 import org.fcitx.fcitx5.android.input.picker.emoticonPicker
 import org.fcitx.fcitx5.android.input.picker.symbolPicker
@@ -134,6 +135,10 @@ class InputView(
 
     private val keyboardHeightPercent = keyboardPrefs.keyboardHeightPercent
     private val keyboardHeightPercentLandscape = keyboardPrefs.keyboardHeightPercentLandscape
+    private val t9KeyboardHeightPercent = keyboardPrefs.t9KeyboardHeightPercent
+    private val t9KeyboardHeightPercentLandscape = keyboardPrefs.t9KeyboardHeightPercentLandscape
+    private val useT9KeyboardLayout by keyboardPrefs.useT9KeyboardLayout
+    private var isT9KeyboardActive = false
     private val keyboardSidePadding = keyboardPrefs.keyboardSidePadding
     private val keyboardSidePaddingLandscape = keyboardPrefs.keyboardSidePaddingLandscape
     private val keyboardBottomPadding = keyboardPrefs.keyboardBottomPadding
@@ -142,6 +147,8 @@ class InputView(
     private val keyboardSizePrefs = listOf(
         keyboardHeightPercent,
         keyboardHeightPercentLandscape,
+        t9KeyboardHeightPercent,
+        t9KeyboardHeightPercentLandscape,
         keyboardSidePadding,
         keyboardSidePaddingLandscape,
         keyboardBottomPadding,
@@ -151,8 +158,12 @@ class InputView(
     private val keyboardHeightPx: Int
         get() {
             val percent = when (resources.configuration.orientation) {
-                Configuration.ORIENTATION_LANDSCAPE -> keyboardHeightPercentLandscape
-                else -> keyboardHeightPercent
+                Configuration.ORIENTATION_LANDSCAPE ->
+                    if (isT9KeyboardActive) t9KeyboardHeightPercentLandscape
+                    else keyboardHeightPercentLandscape
+                else ->
+                    if (isT9KeyboardActive) t9KeyboardHeightPercent
+                    else keyboardHeightPercent
             }.getValue()
             return resources.displayMetrics.heightPixels * percent / 100
         }
@@ -198,7 +209,30 @@ class InputView(
         windowManager.addEssentialWindow(symbolPicker)
         windowManager.addEssentialWindow(emojiPicker)
         windowManager.addEssentialWindow(emoticonPicker)
-        // show KeyboardWindow by default
+
+        // 1. Initialize T9 state and set callbacks before attachWindow so onAttached → onLayoutChanged is ready
+        isT9KeyboardActive = useT9KeyboardLayout
+        keyboardWindow.onLayoutChanged = { layoutName ->
+            val shouldBeT9 = useT9KeyboardLayout && layoutName == T9Keyboard.Name
+            if (isT9KeyboardActive != shouldBeT9) {
+                isT9KeyboardActive = shouldBeT9
+                updateKeyboardSize()
+            }
+        }
+        windowManager.onActiveWindowChanged = { oldWindow, newWindow ->
+            if (oldWindow === keyboardWindow && isT9KeyboardActive) {
+                // 离开键盘窗口 → 用默认高度 40/45
+                isT9KeyboardActive = false
+                updateKeyboardSize()
+            } else if (newWindow === keyboardWindow && useT9KeyboardLayout && keyboardWindow.isCurrentLayoutT9()) {
+                // 回到键盘窗口 → 恢复 T9 高度 10/15
+                if (!isT9KeyboardActive) {
+                    isT9KeyboardActive = true
+                    updateKeyboardSize()
+                }
+            }
+        }
+        // 2. attach window (triggers onAttached → onLayoutChanged)
         windowManager.attachWindow(KeyboardWindow)
 
         broadcaster.onImeUpdate(fcitx.runImmediately { inputMethodEntryCached })
@@ -242,8 +276,7 @@ class InputView(
             })
         }
 
-        updateKeyboardSize()
-
+        // 3. Add views to layout
         add(preedit.ui.root, lParams(matchParent, wrapContent) {
             above(keyboardView)
             centerHorizontally()
@@ -257,10 +290,14 @@ class InputView(
             centerHorizontally()
         })
 
+        // 4. updateKeyboardSize() after all add() so layoutParams exist (avoids NPE / wrong height)
+        updateKeyboardSize()
+
         keyboardPrefs.registerOnChangeListener(onKeyboardSizeChangeListener)
     }
 
     private fun updateKeyboardSize() {
+        if (windowManager.view.layoutParams == null) return
         windowManager.view.updateLayoutParams {
             height = keyboardHeightPx
         }
@@ -313,6 +350,11 @@ class InputView(
         returnKeyDrawable.updateDrawableOnEditorInfo(info)
         if (focusChangeResetKeyboard || !restarting) {
             windowManager.attachWindow(KeyboardWindow)
+            // 重新进入时恢复 T9 高度（回调可能在 onDetachedFromWindow 被清空）
+            if (useT9KeyboardLayout && keyboardWindow.isCurrentLayoutT9() && !isT9KeyboardActive) {
+                isT9KeyboardActive = true
+                updateKeyboardSize()
+            }
         }
     }
 
@@ -363,8 +405,9 @@ class InputView(
     }
 
     override fun onDetachedFromWindow() {
+        keyboardWindow.onLayoutChanged = null
+        windowManager.onActiveWindowChanged = null
         keyboardPrefs.unregisterOnChangeListener(onKeyboardSizeChangeListener)
-        // clear DynamicScope, implies that InputView should not be attached again after detached.
         scope.clear()
         super.onDetachedFromWindow()
     }

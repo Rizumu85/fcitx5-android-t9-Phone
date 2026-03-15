@@ -37,6 +37,12 @@ class InputWindowManager : UniqueViewComponent<InputWindowManager, FrameLayout>(
     private var currentWindow: InputWindow? = null
     private var currentView: View? = null
 
+    /**
+     * Invoked when the active window changes (after detach of old, after attach of new).
+     * Parameters: (oldWindow, newWindow). Either may be null when no previous window.
+     */
+    var onActiveWindowChanged: ((InputWindow?, InputWindow) -> Unit)? = null
+
     private val disableAnimation by AppPrefs.getInstance().advanced.disableAnimation
 
     private fun prepareAnimation(
@@ -152,7 +158,9 @@ class InputWindowManager : UniqueViewComponent<InputWindowManager, FrameLayout>(
         Timber.d("Attach $window")
         // notify the window it was attached
         window.onAttached()
+        val oldWindow = currentWindow
         currentWindow = window
+        onActiveWindowChanged?.invoke(oldWindow, window)
         // broadcast the new window was added to layout
         broadcaster.onWindowAttached(window)
     }

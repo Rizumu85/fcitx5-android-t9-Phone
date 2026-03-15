@@ -75,6 +75,8 @@ class KeyboardWindow : InputWindow.SimpleInputWindow<KeyboardWindow>(), Essentia
     private var currentKeyboardName = ""
     private var lastSymbolType: String by AppPrefs.getInstance().internal.lastSymbolLayout
 
+    var onLayoutChanged: ((String) -> Unit)? = null
+
     private val currentKeyboard: BaseKeyboard? get() = keyboards[currentKeyboardName]
 
     private val keyActionListener = KeyActionListener { it, source ->
@@ -116,6 +118,7 @@ class KeyboardWindow : InputWindow.SimpleInputWindow<KeyboardWindow>(), Essentia
             it.onReturnDrawableUpdate(returnKeyDrawable.resourceId)
             it.onInputMethodUpdate(fcitx.runImmediately { inputMethodEntryCached })
         }
+        onLayoutChanged?.invoke(target)
     }
 
     fun switchLayout(to: String, remember: Boolean = true) {
@@ -179,8 +182,11 @@ class KeyboardWindow : InputWindow.SimpleInputWindow<KeyboardWindow>(), Essentia
             it.popupActionListener = popupActionListener
             it.onAttach()
         }
+        onLayoutChanged?.invoke(currentKeyboardName)
         notifyBarLayoutChanged()
     }
+
+    fun isCurrentLayoutT9(): Boolean = currentKeyboardName == T9Keyboard.Name
 
     override fun onDetached() {
         currentKeyboard?.let {

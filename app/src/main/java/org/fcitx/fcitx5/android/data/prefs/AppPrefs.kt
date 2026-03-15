@@ -181,6 +181,26 @@ class AppPrefs(private val sharedPreferences: SharedPreferences) {
         val useT9KeyboardLayout =
             switch(R.string.use_t9_keyboard_layout, "use_t9_keyboard_layout", false)
 
+        val t9KeyboardHeightPercent: ManagedPreference.PInt
+        val t9KeyboardHeightPercentLandscape: ManagedPreference.PInt
+
+        init {
+            val (primary, secondary) = twinInt(
+                R.string.t9_keyboard_height,
+                R.string.portrait,
+                "t9_keyboard_height_percent",
+                10,
+                R.string.landscape,
+                "t9_keyboard_height_percent_landscape",
+                15,
+                5,
+                50,
+                "%"
+            ) { useT9KeyboardLayout.getValue() }
+            t9KeyboardHeightPercent = primary
+            t9KeyboardHeightPercentLandscape = secondary
+        }
+
         val keyboardHeightPercent: ManagedPreference.PInt
         val keyboardHeightPercentLandscape: ManagedPreference.PInt
 
