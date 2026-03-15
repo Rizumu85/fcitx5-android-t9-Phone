@@ -842,7 +842,7 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
     /**
      * Switch to next T9 input mode
      */
-    private fun switchToNextT9Mode() {
+    fun switchToNextT9Mode() {
         // Clear any pending multi-tap state before switching
         resetMultiTapState()
         

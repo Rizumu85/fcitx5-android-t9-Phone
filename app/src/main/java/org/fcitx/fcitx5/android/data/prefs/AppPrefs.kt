@@ -176,7 +176,7 @@ class AppPrefs(private val sharedPreferences: SharedPreferences) {
         val langSwitchKeyBehavior = enumList(
             R.string.lang_switch_key_behavior,
             "lang_switch_key_behavior",
-            LangSwitchBehavior.Enumerate
+            LangSwitchBehavior.T9ModeSwitch
         ) { showLangSwitchKey.getValue() }
         val useT9KeyboardLayout =
             switch(R.string.use_t9_keyboard_layout, "use_t9_keyboard_layout", false)

@@ -129,6 +129,9 @@ class CommonKeyActionListener :
                         LangSwitchBehavior.NextInputMethodApp -> {
                             service.switchToNextIME()
                         }
+                        LangSwitchBehavior.T9ModeSwitch -> {
+                            service.switchToNextT9Mode()
+                        }
                     }
                 }
                 is ShowInputMethodPickerAction -> showInputMethodPicker()

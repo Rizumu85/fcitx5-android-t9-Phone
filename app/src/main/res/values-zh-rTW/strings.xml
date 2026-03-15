@@ -259,6 +259,7 @@
     <string name="table_dict_replace_message">碼表字典 \"%1$s\" 已存在。您可以匯入新字典並覆蓋原字典。</string>
     <string name="lang_switch_key_behavior">語言切換鍵行為</string>
     <string name="lang_switch_behavior_next_ime_app">切換至下一個輸入法</string>
+    <string name="lang_switch_behavior_t9_mode">切換 T9 中/英/數 模式</string>
     <string name="cannot_be_empty">不能為空</string>
     <string name="_cannot_be_empty">%1$s不能為空</string>
     <string name="action_forget_candidate_word">忘記詞彙</string>
