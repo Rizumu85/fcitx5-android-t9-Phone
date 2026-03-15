@@ -117,6 +117,7 @@ class KeyboardWindow : InputWindow.SimpleInputWindow<KeyboardWindow>(), Essentia
             it.onAttach()
             it.onReturnDrawableUpdate(returnKeyDrawable.resourceId)
             it.onInputMethodUpdate(fcitx.runImmediately { inputMethodEntryCached })
+            (it as? T9Keyboard)?.updateT9ModeLabel(service.getCurrentT9ModeLabel())
         }
         onLayoutChanged?.invoke(target)
     }
@@ -166,6 +167,11 @@ class KeyboardWindow : InputWindow.SimpleInputWindow<KeyboardWindow>(), Essentia
 
     override fun onImeUpdate(ime: InputMethodEntry) {
         currentKeyboard?.onInputMethodUpdate(ime)
+        (currentKeyboard as? T9Keyboard)?.updateT9ModeLabel(service.getCurrentT9ModeLabel())
+    }
+
+    override fun onT9ModeUpdate(modeLabel: String) {
+        (currentKeyboard as? T9Keyboard)?.updateT9ModeLabel(modeLabel)
     }
 
     override fun onPunctuationUpdate(mapping: Map<String, String>) {

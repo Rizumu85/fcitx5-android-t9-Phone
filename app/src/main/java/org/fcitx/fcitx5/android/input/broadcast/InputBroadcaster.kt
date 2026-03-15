@@ -90,4 +90,8 @@ class InputBroadcaster : UniqueComponent<InputBroadcaster>(), Dependent, InputBr
         receivers.forEach { it.onReturnKeyDrawableUpdate(resourceId) }
     }
 
+    override fun onT9ModeUpdate(modeLabel: String) {
+        receivers.forEach { it.onT9ModeUpdate(modeLabel) }
+    }
+
 }

@@ -840,6 +840,22 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
     }
 
     /**
+     * Callback invoked when T9 mode changes (for syncing space bar display).
+     * Set by InputView when the input scope is created.
+     */
+    var onT9ModeChanged: ((String) -> Unit)? = null
+
+    /**
+     * Returns the current T9 mode label for display (e.g. "中", "En", "123").
+     * Used by T9 keyboard to show the correct label on the space bar.
+     */
+    fun getCurrentT9ModeLabel(): String = when (currentT9Mode) {
+        T9InputMode.CHINESE -> "中"
+        T9InputMode.ENGLISH -> "En"
+        T9InputMode.NUMBER -> "123"
+    }
+
+    /**
      * Switch to next T9 input mode
      */
     fun switchToNextT9Mode() {
@@ -852,12 +868,9 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
             T9InputMode.NUMBER -> T9InputMode.CHINESE
         }
         
-        val modeName = when (currentT9Mode) {
-            T9InputMode.CHINESE -> "中"
-            T9InputMode.ENGLISH -> "En"
-            T9InputMode.NUMBER -> "123"
-        }
+        val modeName = getCurrentT9ModeLabel()
         showModeIndicator(modeName)
+        onT9ModeChanged?.invoke(modeName)
     }
 
     /**

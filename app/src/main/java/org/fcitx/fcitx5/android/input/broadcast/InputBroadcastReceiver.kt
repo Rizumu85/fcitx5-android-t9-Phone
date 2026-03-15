@@ -43,4 +43,9 @@ interface InputBroadcastReceiver {
 
     fun onReturnKeyDrawableUpdate(@DrawableRes resourceId: Int) {}
 
+    /**
+     * Called when T9 input mode is switched (中/En/123) so the space bar can sync its display.
+     */
+    fun onT9ModeUpdate(modeLabel: String) {}
+
 }

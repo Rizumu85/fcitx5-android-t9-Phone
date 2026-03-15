@@ -71,10 +71,29 @@ class T9Keyboard(
         `return`.img.imageResource = returnDrawable
     }
 
-    override fun onInputMethodUpdate(ime: InputMethodEntry) {
+    private var lastIme: InputMethodEntry? = null
+    private var t9ModeLabel: String? = null
+
+    private fun updateSpaceText() {
+        val ime = lastIme ?: return
+        val suffix = t9ModeLabel ?: ime.subMode.run { label.ifEmpty { name.ifEmpty { null } } }
         space.mainText.text = buildString {
             append(ime.displayName)
-            ime.subMode.run { label.ifEmpty { name.ifEmpty { null } } }?.let { append(" ($it)") }
+            suffix?.let { append(" ($it)") }
         }
+    }
+
+    /**
+     * Updates the space bar to show the current T9 mode (中/En/123) so the user can see
+     * which mode is active without changing the actual Rime schema (still 中文九键).
+     */
+    fun updateT9ModeLabel(modeLabel: String) {
+        t9ModeLabel = modeLabel
+        updateSpaceText()
+    }
+
+    override fun onInputMethodUpdate(ime: InputMethodEntry) {
+        lastIme = ime
+        updateSpaceText()
     }
 }

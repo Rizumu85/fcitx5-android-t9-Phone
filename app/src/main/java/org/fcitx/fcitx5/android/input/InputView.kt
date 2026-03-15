@@ -199,6 +199,9 @@ class InputView(
         // MUST call before any operation
         setupScope()
 
+        // Sync T9 mode to space bar when user switches via # long press or language key
+        service.onT9ModeChanged = { broadcaster.onT9ModeUpdate(it) }
+
         // restore punctuation mapping in case of InputView recreation
         fcitx.launchOnReady {
             punctuation.updatePunctuationMapping(it.statusAreaActionsCached)
