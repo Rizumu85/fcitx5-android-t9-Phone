@@ -22,9 +22,11 @@ class InputDeviceManager(private val onChange: (Boolean) -> Unit) {
 
     private fun setupInputViewEvents(isVirtual: Boolean) {
         val iv = inputView ?: return
-        iv.handleEvents = isVirtual
-        // Always show InputView when T9 keyboard layout is enabled
-        iv.visibility = if (isVirtual || useT9KeyboardLayout) View.VISIBLE else View.GONE
+        // Enable InputView interaction when using virtual keyboard
+        // OR when T9 keyboard layout is enabled for physical keyboard users.
+        val enableInputView = isVirtual || useT9KeyboardLayout
+        iv.handleEvents = enableInputView
+        iv.visibility = if (enableInputView) View.VISIBLE else View.GONE
     }
 
     private fun setupCandidatesViewEvents(isVirtual: Boolean) {

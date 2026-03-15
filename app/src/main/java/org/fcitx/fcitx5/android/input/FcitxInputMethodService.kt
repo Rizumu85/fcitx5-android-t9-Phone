@@ -132,7 +132,9 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
     private var highlightColor: Int = 0x66008577 // material_deep_teal_500 with alpha 0.4
 
     private val prefs = AppPrefs.getInstance()
-    private val inlineSuggestions by prefs.keyboard.inlineSuggestions
+    private val keyboardPrefs = prefs.keyboard
+    private val inlineSuggestions by keyboardPrefs.inlineSuggestions
+    private val useT9KeyboardLayout by keyboardPrefs.useT9KeyboardLayout
     private val ignoreSystemCursor by prefs.advanced.ignoreSystemCursor
 
     private val recreateInputViewPrefs: Array<ManagedPreference<*>> = arrayOf(
@@ -587,7 +589,9 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
     private var inputViewLocation = intArrayOf(0, 0)
 
     override fun onComputeInsets(outInsets: Insets) {
-        if (inputDeviceMgr.isVirtualKeyboard) {
+        // When using virtual keyboard OR T9 layout (physical T9 phone with on-screen control bar),
+        // make the area of keyboardView touchable so it can receive tap events.
+        if (inputDeviceMgr.isVirtualKeyboard || useT9KeyboardLayout) {
             inputView?.keyboardView?.getLocationInWindow(inputViewLocation)
             outInsets.apply {
                 contentTopInsets = inputViewLocation[1]
