@@ -903,7 +903,9 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
                             true
                         } else if (event.repeatCount == 1) {
                             digitLongPressFlags[keyCode] = true
-                            t9CapsLock = !t9CapsLock
+                            val newCapsState = !t9CapsLock  // Capture intended state first
+                            commitMultiTapChar()  // Commit pending char (may affect shift state)
+                            t9CapsLock = newCapsState
                             showModeIndicator(if (t9CapsLock) "ABC" else "abc")
                             true
                         } else {
@@ -1164,7 +1166,9 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
                 when (currentT9Mode) {
                     T9InputMode.ENGLISH -> {
                         if (digitLongPressFlags[keyCode] != true) {
-                            t9ShiftActive = !t9ShiftActive
+                            val newShiftState = !t9ShiftActive  // Capture intended state first
+                            commitMultiTapChar()  // Commit pending char (may reset t9ShiftActive)
+                            t9ShiftActive = newShiftState
                             showModeIndicator(if (t9ShiftActive) "ShiftON" else "ShiftOFF")
                         }
                         digitLongPressFlags[keyCode] = false
