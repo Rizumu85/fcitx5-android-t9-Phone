@@ -646,6 +646,98 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
         }
     }
 
+    // ==================== T9 Input State ====================
+
+    /**
+     * T9 input states for determining key behavior
+     */
+    private enum class T9InputState {
+        CHINESE_IDLE,      // 中文未输入
+        CHINESE_COMPOSING, // 中文已输入
+        ENGLISH            // 英文状态 (ascii_mode)
+    }
+
+    /**
+     * Track if Caps Lock is enabled for English mode
+     */
+    private var t9CapsLock = false
+
+    /**
+     * Track if a long press action was triggered for # key.
+     * This prevents short press action from firing on KEY_UP after a long press.
+     */
+    private var t9PoundLongPressTriggered = false
+
+    /**
+     * Get current T9 input state based on composing text and input method
+     */
+    private fun getT9InputState(): T9InputState {
+        val hasComposing = composing.isNotEmpty()
+        // For now, we determine English mode by checking if there's no composing
+        // and the input is in a simple text field. A more accurate way would be
+        // to query Rime's ascii_mode, but that requires async call.
+        // TODO: Implement proper ascii_mode detection from Rime
+        return when {
+            hasComposing -> T9InputState.CHINESE_COMPOSING
+            else -> T9InputState.CHINESE_IDLE
+        }
+    }
+
+    /**
+     * Handle T9 special keys with state-aware behavior.
+     * Returns true if the key was handled, false to pass through to default handling.
+     * 
+     * Arrow keys are NOT handled here - they are passed through to Rime/system:
+     * - When composing: Rime's key_binder handles candidate navigation
+     * - When not composing: System handles cursor movement
+     */
+    private fun handleT9SpecialKey(keyCode: Int, event: KeyEvent): Boolean {
+        if (!inputDeviceMgr.isInInputMode) return false
+        if (event.action != KeyEvent.ACTION_DOWN) return false
+
+        val state = getT9InputState()
+
+        return when (keyCode) {
+            // # key: short press = cycle mode, long press = enter
+            // Short press is deferred to KEY_UP to distinguish from long press
+            KeyEvent.KEYCODE_POUND -> {
+                when (state) {
+                    T9InputState.CHINESE_COMPOSING -> false // No action defined, pass through
+                    else -> {
+                        if (event.repeatCount == 0) {
+                            // First KEY_DOWN: reset long press flag, consume but don't act yet
+                            t9PoundLongPressTriggered = false
+                            true
+                        } else if (event.repeatCount == 1) {
+                            // First repeat: this is a long press, send Enter
+                            t9PoundLongPressTriggered = true
+                            currentInputConnection?.let { ic ->
+                                ic.commitText("\n", 1)
+                            }
+                            true
+                        } else {
+                            true // Consume subsequent repeats
+                        }
+                    }
+                }
+            }
+
+            // * key: English mode - short press = shift, long press = caps lock
+            KeyEvent.KEYCODE_STAR -> {
+                // For now, * key in Chinese modes is handled by Rime (punctuation)
+                // In English mode, we handle shift/caps lock
+                // Since we can't easily detect English mode yet, just pass through
+                // TODO: Implement when ascii_mode detection is available
+                false
+            }
+
+            // Arrow keys are NOT intercepted - let them pass through to Rime/system
+            // Rime's key_binder will handle: Up/Down -> Page_Up/Down, Left/Right -> selection
+
+            else -> false
+        }
+    }
+
     private fun forwardKeyEvent(event: KeyEvent): Boolean {
         // reason to use a self increment index rather than timestamp:
         // KeyUp and KeyDown events actually can happen on the same time
@@ -665,6 +757,11 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
     }
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {
+        // Handle T9 special keys first
+        if (handleT9SpecialKey(keyCode, event)) {
+            return true
+        }
+
         val (mappedKeyCode, mappedEvent) = mapKeyEvent(keyCode, event)
         // request to show floating CandidatesView when pressing physical keyboard
         if (inputDeviceMgr.evaluateOnKeyDown(mappedEvent, this)) {
@@ -677,8 +774,42 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
     }
 
     override fun onKeyUp(keyCode: Int, event: KeyEvent): Boolean {
+        // For T9 special keys that were handled in onKeyDown, consume the key up too
+        if (handleT9SpecialKeyUp(keyCode, event)) {
+            return true
+        }
+
         val (mappedKeyCode, mappedEvent) = mapKeyEvent(keyCode, event)
         return forwardKeyEvent(mappedEvent) || super.onKeyUp(mappedKeyCode, mappedEvent)
+    }
+
+    /**
+     * Handle key up events for T9 special keys.
+     * Short press actions are executed here after confirming it wasn't a long press.
+     */
+    private fun handleT9SpecialKeyUp(keyCode: Int, event: KeyEvent): Boolean {
+        if (!inputDeviceMgr.isInInputMode) return false
+        val state = getT9InputState()
+
+        return when (keyCode) {
+            KeyEvent.KEYCODE_POUND -> {
+                when (state) {
+                    T9InputState.CHINESE_COMPOSING -> false
+                    else -> {
+                        // If long press was NOT triggered, execute short press action
+                        if (!t9PoundLongPressTriggered) {
+                            postFcitxJob {
+                                enumerateIme()
+                            }
+                        }
+                        // Reset the flag
+                        t9PoundLongPressTriggered = false
+                        true
+                    }
+                }
+            }
+            else -> false
+        }
     }
 
     // Added in API level 14, deprecated in 29
