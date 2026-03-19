@@ -3,7 +3,7 @@
 企鹅输入法魔改成支持物理九键的智能安卓机，对其他输入方式的支持可能有bug。
 
 ## 下载
-- 在本项目的Release下载安装包。[Release](https://github.com/Rizumu85/fcitx5-android-t9-Phone/releases)根据Release的说明下载对应的版本
+- 在本项目的[Release](https://github.com/Rizumu85/fcitx5-android-t9-Phone/releases)下载安装包。根据Release的说明下载对应的版本
 - 接着在另一个库的Release下载相关插件相关的文件。[rime-ice-t9-phone](https://github.com/Rizumu85/rime-ice-t9-phone/releases)
 
 ### 安装方法
