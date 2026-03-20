@@ -1,6 +1,6 @@
 # fcitx5-android-t9-phone
 
-企鹅输入法魔改成支持物理九键键盘的智能安卓机/老人机，对其他输入方式的支持可能有bug。
+安卓企鹅输入法魔改成支持物理九键键盘的智能安卓机/老人机，对其他输入方式的支持可能有bug。
 
 ## 下载
 - 在本项目的[Release](https://github.com/Rizumu85/fcitx5-android-t9-Phone/releases)下载安装包。根据Release的说明下载对应的版本
