@@ -125,9 +125,20 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
     private val composing = CursorRange()
     private var composingText = FormattedText.Empty
 
+    private fun clearT9CompositionState() {
+        t9CompositionTracker.clear()
+    }
+
+    fun handleVirtualT9Backspace() {
+        if (useT9KeyboardLayout && currentT9Mode == T9InputMode.CHINESE) {
+            t9CompositionTracker.backspace()
+        }
+    }
+
     private fun resetComposingState() {
         composing.clear()
         composingText = FormattedText.Empty
+        clearT9CompositionState()
     }
 
     private var cursorUpdateIndex: Int = 0
@@ -231,7 +242,7 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
     private fun handleFcitxEvent(event: FcitxEvent<*>) {
         when (event) {
             is FcitxEvent.CommitStringEvent -> {
-                t9CompositionTracker.clear()
+                clearT9CompositionState()
                 commitText(event.data.text, event.data.cursor)
             }
             is FcitxEvent.KeyEvent -> event.data.let event@{
@@ -347,6 +358,9 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
     }
 
     private fun handleBackspaceKey() {
+        if (useT9KeyboardLayout && currentT9Mode == T9InputMode.CHINESE) {
+            t9CompositionTracker.backspace()
+        }
         val lastSelection = selection.latest
         if (lastSelection.isNotEmpty()) {
             selection.predict(lastSelection.start)
@@ -1088,6 +1102,17 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
     /** Current T9 segment (digits 2-9 after last apostrophe) for pinyin candidates. */
     fun getCurrentT9Segment(): String = t9CompositionTracker.getCurrentSegment()
 
+    /** Keep the Kotlin-side T9 tracker in sync with Rime's composing state. */
+    fun syncT9CompositionWithInputPanel(data: FcitxEvent.InputPanelEvent.Data) {
+        if (useT9KeyboardLayout &&
+            currentT9Mode == T9InputMode.CHINESE &&
+            data.preedit.isEmpty() &&
+            !t9CompositionTracker.isEmpty()
+        ) {
+            clearT9CompositionState()
+        }
+    }
+
     /** Total number of digit keys (2-9) in current composition, for truncating first-row pinyin. */
     fun getT9CompositionKeyCount(): Int =
         t9CompositionTracker.getFullComposition().count { it in '2'..'9' }
@@ -1501,6 +1526,7 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
             postFcitxJob {
                 if (!isEmpty()) {
                     Timber.d("handleCursorUpdate: reset")
+                    clearT9CompositionState()
                     reset()
                 }
             }
@@ -1684,6 +1710,7 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
 
     override fun onFinishInput() {
         Timber.d("onFinishInput")
+        clearT9CompositionState()
         postFcitxJob {
             focus(false)
         }

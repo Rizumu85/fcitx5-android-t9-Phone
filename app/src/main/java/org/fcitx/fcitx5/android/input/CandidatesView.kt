@@ -257,6 +257,9 @@ class CandidatesView(
     private fun updateUi() {
         // First row: in T9 Chinese show predicted pinyin of the candidate at cursor (not always first)
         val useT9 = AppPrefs.getInstance().keyboard.useT9KeyboardLayout.getValue()
+        if (useT9) {
+            service.syncT9CompositionWithInputPanel(inputPanel)
+        }
         val t9Preedit = when {
             useT9 && paged.candidates.isNotEmpty() -> {
                 val comment = paged.candidates.getOrNull(paged.cursorIndex)?.comment
@@ -289,11 +292,13 @@ class CandidatesView(
     private fun updatePinyinBar() {
         val useT9 = AppPrefs.getInstance().keyboard.useT9KeyboardLayout.getValue()
         if (!useT9) {
+            pinyinBarContainer.removeAllViews()
             pinyinBarScroll.visibility = View.GONE
             return
         }
         val candidates = service.getT9PinyinCandidates()
         if (candidates.isEmpty()) {
+            pinyinBarContainer.removeAllViews()
             pinyinBarScroll.visibility = View.GONE
             return
         }

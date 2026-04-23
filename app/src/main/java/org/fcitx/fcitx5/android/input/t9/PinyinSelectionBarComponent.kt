@@ -55,6 +55,7 @@ class PinyinSelectionBarComponent :
             view.visibility = View.GONE
             return
         }
+        service.syncT9CompositionWithInputPanel(data)
         val candidates = service.getT9PinyinCandidates()
         if (candidates.isEmpty()) {
             view.visibility = View.GONE
