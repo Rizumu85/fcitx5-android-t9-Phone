@@ -134,6 +134,14 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
         t9CompositionModel = T9CompositionModel()
     }
 
+    private fun hasT9CompositionState(): Boolean =
+        !t9CompositionTracker.isEmpty() || t9CompositionModel != T9CompositionModel()
+
+    private fun clearTransientInputUiState() {
+        candidatesView?.clearTransientState()
+        inputView?.clearTransientState()
+    }
+
     /**
      * Handle a virtual (on-screen) backspace press. Returns true when the press was consumed
      * by reopening a previously selected pinyin segment back into its source digits; the caller
@@ -856,12 +864,11 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
 
     private fun clearChineseT9CompositionFromEditorTap() {
         if (!useT9KeyboardLayout || currentT9Mode != T9InputMode.CHINESE) return
-        if (getT9InputState() != T9InputState.CHINESE_COMPOSING && t9CompositionTracker.isEmpty()) {
+        if (getT9InputState() != T9InputState.CHINESE_COMPOSING && !hasT9CompositionState()) {
             return
         }
         resetComposingState()
-        candidatesView?.clearTransientState()
-        inputView?.clearTransientState()
+        clearTransientInputUiState()
         currentInputConnection?.finishComposingText()
         postFcitxJob {
             focusOutIn()
@@ -1847,6 +1854,11 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
         if (newSelStart != newSelEnd) return
         // do reset if composing is empty && input panel is not empty
         if (composing.isEmpty()) {
+            if (useT9KeyboardLayout && currentT9Mode == T9InputMode.CHINESE) {
+                clearT9CompositionState()
+                clearTransientInputUiState()
+                currentInputConnection?.finishComposingText()
+            }
             postFcitxJob {
                 if (!isEmpty()) {
                     clearT9CompositionState()
@@ -1872,8 +1884,7 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
             }
         } else {
             resetComposingState()
-            candidatesView?.clearTransientState()
-            inputView?.clearTransientState()
+            clearTransientInputUiState()
             // cursor outside composing range, finish composing as-is
             currentInputConnection?.finishComposingText()
             // `fcitx.reset()` here would commit preedit after new cursor position

@@ -114,7 +114,7 @@ Candidate focus remains service-owned state rendered by `CandidatesView.updateT9
 | C2 | Critical | RESOLVED | `selectT9Pinyin` | Selection records a `T9ResolvedSegment`, keeps the remaining suffix, and sets `pendingSelection`. It no longer replays backspaces/pinyin/digits into Rime. |
 | C3 | High | RESOLVED | `CandidatesView.updateUi` | A single `T9PresentationState` is built via `getT9PresentationState`; `updateUi` no longer switches strategies mid-render and `truncateCommentByKeyCount` is gone. |
 | C4 | High | RESOLVED | `syncT9CompositionWithInputPanel` | Sync no longer parses Rime display preedit for raw digits. The key-event tracker is authoritative; empty preedit clears state; non-empty preedit is stored as display/debug fallback. |
-| C5 | High | PARTIAL | Delete/back/focus-out paths | Delete/back now reopens the latest resolved segment before forwarding normal delete. Focus-out/touch-away coherent clear is still open. |
+| C5 | High | CODED_NEEDS_DEVICE_VERIFY | Delete/back/focus-out paths | Delete/back now reopens the latest resolved segment before forwarding normal delete. Focus-out/touch-away now clears model/tracker/UI transient state on editor tap or cursor-away paths, but still needs on-device verification. |
 | C6 | Medium | OPEN | `T9PinyinUtils.kt` | `t9KeyToPinyin` and `matchedPrefixLength` still use `take(6)`, silently ignoring later keys. |
 | C7 | Medium | OPEN | `useT9KeyboardLayout` naming/gating | The stored setting is effectively "T9 mode enabled"; code should use that meaning consistently, but persisted-key migration is optional later. |
 | C8 | Medium | OPEN | `PinyinSelectionBarComponent.kt` | Duplicate pinyin-row implementation appears stale and can mislead future changes. |
@@ -127,6 +127,7 @@ Candidate focus remains service-owned state rendered by `CandidatesView.updateT9
 - The earlier `handleFcitxEvent.CommitStringEvent` letter-only intercept has been removed. Under the current Option B design, pinyin selection never pushes letters into Rime, so the intercept is no longer needed and could hide unrelated commit bugs.
 - `handleVirtualT9Backspace()` now returns `Boolean` so on-screen delete can skip sending a normal backspace when it was consumed by a model-only reopen.
 - Physical DEL/BACK uses the same reopen transition and consumes the matching key-up through `t9ConsumedNavigationKeyUp`.
+- Focus-out/touch-away handling now includes explicit model state in the clear condition and clears visible transient rows immediately when T9 Chinese cursor updates indicate composition has been abandoned.
 
 ## 7. Reference From yuyansdk
 
@@ -146,15 +147,15 @@ Do not port:
 
 ## 8. Recommended Implementation Order
 
-Steps 1-6 landed; remaining work starts at step 7.
+Steps 1-7 are coded; remaining work starts with device verification before lower-risk cleanup.
 
 1. ~~Add a composition model that can represent resolved prefix plus unresolved suffix.~~ (done)
 2. ~~Make `selectT9Pinyin` update/mark that model transactionally instead of losing the selected prefix.~~ (done)
 3. ~~Build one presentation snapshot from model plus latest fcitx input-panel and paged-candidate data.~~ (done)
 4. ~~Make `CandidatesView` render the top row and pinyin row from that single snapshot.~~ (done)
 5. ~~Define delete/back transitions against the same model.~~ (done)
-6. Implement focus-out/touch-away coherent clear (plan Phase C Step 7).
-7. Manually verify Option B on device, especially `2496 -> select ai -> delete`, touch chip parity, physical OK parity, and filtered Hanzi tap correctness.
+6. ~~Implement focus-out/touch-away coherent clear.~~ (coded, needs device verification)
+7. Manually verify Option B on device, especially `2496 -> select ai -> delete`, touch-away/return, touch chip parity, physical OK parity, and filtered Hanzi tap correctness.
 8. Only then address lower-risk cleanup: six-digit truncation, preference naming, stale component removal, English cleanup, and controller extraction.
 
 ## 9. Verification Notes
@@ -164,3 +165,5 @@ Steps 1-6 landed; remaining work starts at step 7.
 - Success means all three rows stay mutually consistent, not merely that one row looks correct.
 - Verification must cover both touch chip selection and physical focus/OK selection.
 - After pinyin selection, the app text field must not receive final text until a Hanzi candidate is selected or Rime commits.
+- Local static check: `git diff --check` passes.
+- Build check could not run in this environment because no Java runtime is installed.

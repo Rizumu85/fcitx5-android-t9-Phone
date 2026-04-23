@@ -1,6 +1,6 @@
 # Implementation Plan - T9 Composition Model First
 
-Audience: another coding agent. Read `analyse.md` first. The current source already has the composition model, RecyclerView pinyin row, chip adapter, top/bottom focus state, model-only pinyin selection, client-side Hanzi filtering, and delete-to-reopen behaviour. Do not restart from older plans. The next work should finish focus-out/touch-away clearing and manual verification for the coherent T9 composition flow.
+Audience: another coding agent. Read `analyse.md` first. The current source already has the composition model, RecyclerView pinyin row, chip adapter, top/bottom focus state, model-only pinyin selection, client-side Hanzi filtering, delete-to-reopen behaviour, and coded focus-out/touch-away clearing. Do not restart from older plans. The next work should manually verify the coherent T9 composition flow on device before Phase D cleanup.
 
 ## Progress Snapshot (kept in sync with source)
 
@@ -12,7 +12,7 @@ Audience: another coding agent. Read `analyse.md` first. The current source alre
 - Phase B addendum - Hanzi filtering: DONE. `FcitxInputMethodService.filterPagedByResolvedPinyin` narrows the candidate page (client-side) to entries whose comment starts with the resolved-pinyin prefix. `CandidatesView.updateUi` calls it before rendering, and the candidate click handler translates the filtered index back to the original fcitx index via `t9ShownPaged` so taps still select the intended character. Trade-off: this is a client-side trim of the current Rime page, so if Rime's page contains few `ai*` entries the row can look sparse; in that case the filter falls back to the unfiltered page rather than showing an empty row. A deeper fix (making Rime itself narrow to `ai*`) would require pushing letters back into Rime, which reintroduces the text-leak that drove Option B, so it is deferred.
 - Phase C Step 6: DONE (with design change). Any delete while `resolvedSegments` is non-empty first reopens the last resolved segment back into the unresolved suffix (prepends its `sourceDigits` to the current `unresolvedDigits`), no Rime keys replayed. The "only reopen when unresolved is empty" variant was replaced by the user-requested "selection is the most recent decision, so delete undoes it first". Wired in three places: `handleVirtualT9Backspace` (on-screen delete, returns `Boolean`), `onKeyDown` intercept for `KEYCODE_DEL`/mapped `KEYCODE_BACK` (consumes the key + UP via `t9ConsumedNavigationKeyUp`), and `CommonKeyActionListener.SymAction` (skips `sendKey` on consumed press). Each reopen path also calls `candidatesView?.refreshT9Ui()` because no fcitx event fires.
 - Step removed: `handleFcitxEvent.CommitStringEvent` letter intercept is gone. Under Option B we never push letters into Rime, so Rime cannot emit a letter commit; the intercept became dead code that could mask unrelated bugs.
-- Phase C Step 7 (focus-out / touch-away coherent clear): NOT STARTED.
+- Phase C Step 7 (focus-out / touch-away coherent clear): CODED, NEEDS DEVICE VERIFICATION. `clearChineseT9CompositionFromEditorTap()` now treats `T9CompositionModel` as clear-worthy state, not just the raw tracker/composing span. Cursor updates with an empty composing span in T9 Chinese mode now clear the Kotlin model plus visible transient rows immediately before asking fcitx to reset, preventing stale candidate/pinyin rows from surviving a tap-away.
 - Phase D: NOT STARTED.
 
 ## Ground Rules
@@ -240,8 +240,9 @@ Purpose: prevent default-looking candidate bars or stale Rime composition from s
 
 Change:
 
-- Route editor tap/focus-out through the same clear helper used by full delete/commit.
-- Clear model, tracker, pending selection, focus state, adapter list, and transient candidate view state together.
+- Route editor tap/focus-out through clear helpers that clear the model, tracker, pending selection, focus state, adapter list, and transient candidate/input view state together.
+- Include `T9CompositionModel` in the "is there anything to clear?" check so fully resolved selections are not missed when the raw tracker is empty.
+- When a cursor update reports an empty composing span in T9 Chinese mode, clear the Kotlin/UI transient state immediately before resetting fcitx.
 - Ensure Rime is focused out or reset consistently so the next typing session does not keep old composition.
 
 Files:
@@ -253,6 +254,8 @@ Verify:
 
 - Type a T9 sequence, tap away, then return and type again.
 - No previous composition remains in top row, pinyin row, Hanzi row, or any default candidate surface.
+- Static check: `git diff --check` passes.
+- Build check: not run in this environment because no Java runtime is installed.
 
 ## Phase D - Cleanup After Core Flow Works
 
