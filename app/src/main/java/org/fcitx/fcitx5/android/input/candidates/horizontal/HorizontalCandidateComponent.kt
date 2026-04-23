@@ -176,6 +176,10 @@ class HorizontalCandidateComponent :
     }
 
     override fun onCandidateUpdate(data: FcitxEvent.CandidateListEvent.Data) {
+        if (service.isChineseT9InputModeActive()) {
+            clearTransientState()
+            return
+        }
         val candidates = data.candidates
         val total = data.total
         val maxSpanCount = maxSpanCountPref.getValue()

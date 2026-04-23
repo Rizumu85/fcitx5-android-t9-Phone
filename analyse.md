@@ -55,7 +55,7 @@ Important service methods already exist:
 - `getT9PinyinCandidates`
 - `getT9PreeditDisplay`
 - `getT9PresentationState`
-- `filterPagedByResolvedPinyin`
+- `getT9ResolvedPinyinFilterPrefixes`
 - `selectT9Pinyin`
 - `commitT9PinyinSelection`
 - `commitHighlightedT9Pinyin`
@@ -68,7 +68,7 @@ Important UI facts:
 - The pinyin row is already a RecyclerView backed by `T9PinyinChipAdapter`.
 - `PagedCandidatesUi.kt` owns the Hanzi candidate row.
 - `CandidatesView.updateUi()` now builds one T9 presentation state and renders from it.
-- When resolved pinyin exists, `CandidatesView.updateUi()` uses `filterPagedByResolvedPinyin`, can bulk-fetch a wider candidate slice, and stores visible-to-fcitx index mappings so touch/OK selection commits the shown Hanzi candidate.
+- When resolved pinyin exists, `CandidatesView.updateUi()` filters by selected-pinyin prefixes, can bulk-fetch a wider candidate slice, and stores visible-to-fcitx index mappings so touch/OK selection commits the shown Hanzi candidate.
 
 ## 4. Core Architectural Problem
 
@@ -120,7 +120,7 @@ Candidate focus remains service-owned state rendered by `CandidatesView.updateT9
 | C8 | Medium | RESOLVED | `PinyinSelectionBarComponent.kt` | Stale duplicate pinyin-row implementation was removed; active path is `CandidatesView` + `T9PinyinChipAdapter`. |
 | C9 | Low | RESOLVED | `onKeyUp` | The duplicate `t9ConsumedNavigationKeyUp = null` cleanup is no longer present in the current source. |
 | C10 | Low | OPEN | English mode | English STAR and multi-tap display may still need cleanup, but they are not the main blocker for Chinese T9 coherence. |
-| C11 | Medium | CODED_NEEDS_DEVICE_VERIFY | Hanzi row after pinyin selection | `filterPagedByResolvedPinyin` client-filters the current Rime page by resolved pinyin prefix. `CandidatesView` also bulk-fetches a wider candidate slice and filters it client-side, then commits visible selections through `selectFromAll` by global candidate index. `selectFromAll` now uses a direct native bulk-selection path instead of toggling paging mode. Bulk-filter results are posted back onto the view thread before refreshing adapters, fixing the `2496 -> ci` RecyclerView layout crash. Empty filtered pages no longer fall back to unrelated raw candidates; visible Right/Left/OK operate on the filtered row and Down can request the next page. |
+| C11 | Medium | CODED_NEEDS_DEVICE_VERIFY | Hanzi row after pinyin selection | `CandidatesView` client-filters the current and bulk Rime candidates by selected pinyin. It tries the full selected reading first, then the first selected segment as a fallback for impossible pairs like `yo ci`. T9 input mode keeps floating `CandidatesView` active while the on-screen T9 controls remain visible, and Chinese T9 candidate-list updates are suppressed from the Kawaii bar so rebuilt Hanzi candidates do not land in the wrong row. The visible row is capped by `AppPrefs.candidates.t9HanziCharacterBudget` (default 12, min 4, max 24) using candidate text character count, not candidate count. Bulk-filtered matches keep a local full list so Down/Up can page through character-budget pages without asking Rime to flip. Bulk-filtered visible selections temporarily switch fcitx to bulk candidate mode, call the existing `select(index)`, then restore the current input-device paging mode; this avoids the observed `AbstractMethodError` from dispatching the newer `selectFromAll` through the delegated runtime API. After committing a candidate whose comment exactly equals the selected prefix, the service clears transient rows, suppresses the intentional reset's empty-preedit clear, and replays the remaining raw T9 digits so leftover segments rebuild real Rime candidates; phrase candidates with longer comments are not split. Bulk-filter results are posted back onto the view thread before refreshing adapters, fixing the `2496 -> ci` RecyclerView layout crash. |
 | C12 | High | CODED_NEEDS_DEVICE_VERIFY | First-load T9 tracker sync | Empty/stale input-panel updates could clear the optimistic tracker before Rime reported non-empty preedit, so fresh `24` could show only `ghi` in the pinyin row. `syncT9CompositionWithInputPanel` now ignores empty preedit clears until a non-empty preedit has been observed. |
 
 ### Additional change since last revision
@@ -133,8 +133,13 @@ Candidate focus remains service-owned state rendered by `CandidatesView.updateT9
 - Removed unused `app/src/main/java/org/fcitx/fcitx5/android/input/t9/PinyinSelectionBarComponent.kt` to avoid duplicate/obsolete pinyin-row logic.
 - Clarified the historical `use_t9_keyboard_layout` setting: no key migration, but user-facing strings now say "T9 input mode" and local feature gates use `t9InputModeEnabled`.
 - Fixed the reported filtered-Hanzi regressions in code: no unfiltered fallback on empty filtered pages, no raw index-0 OK commit from the Hanzi row, first Right moves the visible filtered highlight, Down in Hanzi focus requests the next page, and a wider bulk-filtered result set can fill sparse `ci*` pages.
-- Added `selectFromAll` on `FcitxAPI` and a native `selectCandidateFromAll` bridge so bulk-filtered Hanzi candidates can be committed by global candidate index without depending on the current paged row or temporarily changing paging mode.
+- Avoided using `FcitxAPI.selectFromAll` from the T9 Hanzi UI path after device logs showed an `AbstractMethodError` on the delegated runtime API. Bulk-filtered Hanzi selections now use the existing `setCandidatePagingMode(0)` + `select(index)` path and restore the current input-device paging mode afterward.
 - Fixed the reported `2496 -> ci` crash: the bulk-filter coroutine no longer calls `refreshT9Ui()` directly from `Dispatchers.Default`; it posts the result to the view thread before touching RecyclerView-backed adapters.
+- Added `AppPrefs.candidates.t9HanziCharacterBudget` for the T9 filtered Hanzi row. It defaults to 12 characters with 4-24 bounds and counts displayed Hanzi text length rather than number of candidates.
+- Bulk-filtered T9 Hanzi results now keep a local full match list and page locally by character budget, so Down/Up can move between budget pages without flashing through Rime paging.
+- Added partial selected-pinyin fallback: if the full selected reading has no Hanzi candidates, filtering can show candidates for the first selected segment and then consume that resolved prefix after a successful selection.
+- Selected-prefix consumption now resets fcitx and replays the remaining raw T9 digits after clearing transient rows when the committed candidate's normalized comment exactly equals the selected prefix, so examples beyond `yo ci` (such as `2496 -> ci -> one Hanzi`, then remaining `96`) can rebuild candidate rows from the remaining composition without splitting phrase candidates like `ci wo`.
+- T9 input mode now prefers the floating paged candidate path even with on-screen T9 controls visible, and `KawaiiBarComponent` ignores Chinese T9 candidate-list updates to avoid showing remaining-segment Hanzi candidates in the Kawaii bar.
 - Added an empty-preedit guard so first-load stale input-panel events do not erase the first T9 digit before Rime has reported a real preedit.
 
 ## 7. Reference From yuyansdk
@@ -177,6 +182,6 @@ Steps 1-7 and Phase D steps 1-3 are coded; remaining work starts with device ver
 - Verification must cover both touch chip selection and physical focus/OK selection.
 - After pinyin selection, the app text field must not receive final text until a Hanzi candidate is selected or Rime commits.
 - Long (7+ digit) sequences must preserve full-length pinyin lookup and matched-prefix behavior.
-- Regression cases from device testing: `2496 -> ai -> yo -> OK on 哎哟` must commit `哎哟`; `2496 -> ai -> Right` must move the visible Hanzi highlight immediately; Down in Hanzi focus must request the next page; `2496 -> ci` must not show unrelated unfiltered candidates and should show more matching `ci*` candidates when bulk results are available; fresh start `24` must include `ai` in the pinyin row.
+- Regression cases from device testing: `2496 -> ai -> yo -> OK on 哎哟` must commit `哎哟`; `2496 -> ai -> Right` must move the visible Hanzi highlight immediately; Down in Hanzi focus must request the next page when the visible source is pageable; `2496 -> ci` must not show unrelated unfiltered candidates, should respect the T9 Hanzi character budget, should not crash when a shown Hanzi candidate is selected, and should rebuild candidates for remaining `96` in `CandidatesView` rather than Kawaii bar after committing one `ci` Hanzi; impossible pairs like `yo ci` should fall back to `yo` candidates first; fresh start `24` must include `ai` in the pinyin row.
 - Local static check: `git diff --check` passes.
 - Build check could not run in this environment because no Java runtime is installed.

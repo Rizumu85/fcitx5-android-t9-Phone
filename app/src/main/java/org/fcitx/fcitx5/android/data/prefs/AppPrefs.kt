@@ -341,6 +341,9 @@ class AppPrefs(private val sharedPreferences: SharedPreferences) {
         val smallRowHeightPercent =
             int(R.string.candidates_small_row_percent, "candidates_small_row_percent", 64, 50, 90, "%")
 
+        val t9HanziCharacterBudget =
+            int(R.string.candidates_t9_hanzi_character_budget, "candidates_t9_hanzi_character_budget", 12, 4, 24)
+
         val itemPaddingVertical: ManagedPreference.PInt
         val itemPaddingHorizontal: ManagedPreference.PInt
 

@@ -31,10 +31,11 @@ class InputDeviceManager(private val onChange: (Boolean) -> Unit) {
 
     private fun setupCandidatesViewEvents(isVirtual: Boolean) {
         val cv = candidatesView ?: return
-        cv.handleEvents = !isVirtual
+        val useFloatingCandidates = !isVirtual || t9InputModeEnabled
+        cv.handleEvents = useFloatingCandidates
         // hide CandidatesView when entering virtual keyboard mode,
         // but preserve the visibility when entering physical keyboard mode (in case it's empty)
-        if (isVirtual) {
+        if (!useFloatingCandidates) {
             cv.visibility = View.GONE
         }
     }
@@ -84,7 +85,7 @@ class InputDeviceManager(private val onChange: (Boolean) -> Unit) {
     fun evaluateOnStartInputView(info: EditorInfo, service: FcitxInputMethodService): Boolean {
         startedInputView = true
         isNullInputType = info.isTypeNull()
-        isVirtualKeyboard = when (candidatesViewMode) {
+        isVirtualKeyboard = if (t9InputModeEnabled) false else when (candidatesViewMode) {
             FloatingCandidatesMode.SystemDefault -> service.superEvaluateInputViewShown()
             FloatingCandidatesMode.InputDevice -> isVirtualKeyboard
             FloatingCandidatesMode.Disabled -> true
@@ -116,7 +117,7 @@ class InputDeviceManager(private val onChange: (Boolean) -> Unit) {
     }
 
     private fun evaluateOnKeyDownInner(service: FcitxInputMethodService) {
-        isVirtualKeyboard = when (candidatesViewMode) {
+        isVirtualKeyboard = if (t9InputModeEnabled) false else when (candidatesViewMode) {
             FloatingCandidatesMode.SystemDefault -> service.superEvaluateInputViewShown()
             FloatingCandidatesMode.InputDevice -> false
             FloatingCandidatesMode.Disabled -> true

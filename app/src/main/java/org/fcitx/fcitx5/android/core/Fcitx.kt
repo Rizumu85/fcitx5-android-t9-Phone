@@ -104,7 +104,17 @@ class Fcitx(private val context: Context) : FcitxAPI, FcitxLifecycleOwner {
         withFcitxContext { sendKeySymToFcitx(sym.sym, states.toInt(), code, up, timestamp) }
 
     override suspend fun select(idx: Int): Boolean = withFcitxContext { selectCandidate(idx) }
-    override suspend fun selectFromAll(idx: Int): Boolean = withFcitxContext { selectCandidateFromAll(idx) }
+    override suspend fun selectFromAll(idx: Int): Boolean = withFcitxContext {
+        try {
+            selectCandidateFromAll(idx)
+        } catch (e: UnsatisfiedLinkError) {
+            Timber.w(e, "Falling back to paging-mode bulk candidate selection")
+            setFcitxCandidatePagingMode(0)
+            val selected = selectCandidate(idx)
+            setFcitxCandidatePagingMode(1)
+            selected
+        }
+    }
     override suspend fun isEmpty(): Boolean = withFcitxContext { isInputPanelEmpty() }
     override suspend fun reset() = withFcitxContext { resetInputContext() }
     override suspend fun moveCursor(position: Int) = withFcitxContext { repositionCursor(position) }
