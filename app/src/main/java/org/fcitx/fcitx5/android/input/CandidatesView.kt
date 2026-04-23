@@ -260,6 +260,16 @@ class CandidatesView(
         if (useT9) {
             service.syncT9CompositionWithInputPanel(inputPanel)
         }
+        val rawT9Preedit = inputPanel.preedit.toString()
+        val t9PreeditFallback = if (
+            useT9 &&
+            rawT9Preedit.isNotEmpty() &&
+            rawT9Preedit.all { it in '1'..'9' || it == '\'' }
+        ) {
+            service.getT9PreeditDisplay(rawT9Preedit)
+        } else {
+            null
+        }
         val t9Preedit = when {
             useT9 && paged.candidates.isNotEmpty() -> {
                 val comment = paged.candidates.getOrNull(paged.cursorIndex)?.comment
@@ -268,10 +278,10 @@ class CandidatesView(
                     val keyCount = service.getT9CompositionKeyCount()
                     val display = truncateCommentByKeyCount(comment, keyCount)
                     if (display.isNotEmpty()) FormattedText(arrayOf(display), intArrayOf(TextFormatFlag.NoFlag.flag), -1)
-                    else service.getT9PreeditDisplay()
-                } else service.getT9PreeditDisplay()
+                    else service.getT9PreeditDisplay() ?: t9PreeditFallback
+                } else service.getT9PreeditDisplay() ?: t9PreeditFallback
             }
-            useT9 -> service.getT9PreeditDisplay()
+            useT9 -> service.getT9PreeditDisplay() ?: t9PreeditFallback
             else -> null
         }
         val panelToShow = t9Preedit?.let {

@@ -1124,10 +1124,7 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
         else
             emptyList()
 
-    /** Preedit as pinyin with apostrophes for first row; null if not T9 Chinese or empty. */
-    fun getT9PreeditDisplay(): FormattedText? {
-        if (!useT9KeyboardLayout || currentT9Mode != T9InputMode.CHINESE) return null
-        val raw = t9CompositionTracker.getFullComposition()
+    private fun buildT9PreeditDisplay(raw: String): FormattedText? {
         if (raw.isEmpty()) return null
         val segments = raw.split('\'')
         val pinyinSegments = segments.map { seg ->
@@ -1138,6 +1135,13 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
         val display = pinyinSegments.joinToString("'")
         if (display.isEmpty()) return null
         return FormattedText(arrayOf(display), intArrayOf(TextFormatFlag.NoFlag.flag), -1)
+    }
+
+    /** Preedit as pinyin with apostrophes for first row; null if not T9 Chinese or empty. */
+    fun getT9PreeditDisplay(rawComposition: String? = null): FormattedText? {
+        if (!useT9KeyboardLayout || currentT9Mode != T9InputMode.CHINESE) return null
+        val raw = rawComposition ?: t9CompositionTracker.getFullComposition()
+        return buildT9PreeditDisplay(raw)
     }
 
     /** Replace current T9 segment with selected pinyin (backspace + type pinyin). */
