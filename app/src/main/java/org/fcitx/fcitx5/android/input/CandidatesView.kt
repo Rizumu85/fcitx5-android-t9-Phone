@@ -311,6 +311,13 @@ class CandidatesView(
         visibility = INVISIBLE
     }
 
+    fun prepareForT9CompositionReplay() {
+        paged = FcitxEvent.PagedCandidateEvent.Data.Empty
+        resetT9BulkFilterState()
+        service.moveT9CandidateFocus(FcitxInputMethodService.T9CandidateFocus.TOP)
+        refreshT9Ui()
+    }
+
     fun syncT9CandidateFocus() {
         updateT9FocusIndicator()
     }

@@ -165,6 +165,7 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
         }
         t9CompositionTracker.backspace()
         updateT9CompositionModelFromTracker()
+        candidatesView?.refreshT9Ui()
         return false
     }
 
@@ -1391,12 +1392,11 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
             buildT9CompositionModelDisplay()
                 ?: comment.takeIf { it.isNotEmpty() }?.let { formattedT9Text(it) }
                 ?: getT9PreeditDisplay()
-        } else if (comment.isNotEmpty()) {
-            formattedT9Text(comment)
         } else {
             getT9PreeditDisplay()
                 ?: getT9PreeditDisplay(t9CompositionModel.rawPreedit.takeIf { it.isNotEmpty() })
                 ?: getT9PreeditDisplay(inputPanel.preedit.toString().takeIf { it.isNotEmpty() })
+                ?: comment.takeIf { it.isNotEmpty() }?.let { formattedT9Text(it) }
         }
         return T9PresentationState(
             topReading = topReading,
@@ -1489,7 +1489,8 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
             rawPreedit = rawPreedit,
             pendingSelection = null
         )
-        clearTransientInputUiState()
+        candidatesView?.prepareForT9CompositionReplay()
+        inputView?.clearTransientState()
         replayT9RawComposition(rawPreedit)
         return true
     }
