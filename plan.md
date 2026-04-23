@@ -1,6 +1,6 @@
 # Implementation Plan - T9 Composition Model First
 
-Audience: another coding agent. Read `analyse.md` first. The current source already has the composition model, RecyclerView pinyin row, chip adapter, top/bottom focus state, model-only pinyin selection, client-side Hanzi filtering, delete-to-reopen behaviour, and coded focus-out/touch-away clearing. Do not restart from older plans. The next work should manually verify the coherent T9 composition flow on device before Phase D cleanup.
+Audience: another coding agent. Read `analyse.md` first. The current source already has the composition model, RecyclerView pinyin row, chip adapter, top/bottom focus state, model-only pinyin selection, client-side Hanzi filtering, delete-to-reopen behaviour, coded focus-out/touch-away clearing, six-digit truncation removal, stale component removal, and clarified T9 input-mode naming/gates. Do not restart from older plans. The next work should manually verify the coherent T9 composition flow on device and then continue the remaining Phase D cleanup.
 
 ## Progress Snapshot (kept in sync with source)
 
@@ -9,11 +9,15 @@ Audience: another coding agent. Read `analyse.md` first. The current source alre
 - Phase A Step 2: DONE (re-implemented as "Option B", see below). `selectT9Pinyin` updates the Kotlin model only - `resolvedSegments` += new `T9ResolvedSegment`, suffix stored in `unresolvedDigits`, `pendingSelection` marker recorded. **No Rime key replay.** An earlier design (backspace + pinyin letters + remaining digits into Rime) leaked text like `ai96` into the app field and sometimes crashed, because the t9 schema did not reliably consume the mixed letter+digit sequence. Current design leaves Rime's raw-digit composition untouched; the "selected pinyin" view is a Kotlin-side overlay. `commitT9PinyinSelection` now also calls `candidatesView?.refreshT9Ui()` because no fcitx event fires and the UI would otherwise not redraw.
 - Phase A Step 3: DONE (simplified). `syncT9CompositionWithInputPanel` no longer tries to parse Rime's preedit for `unresolvedDigits`. Rime's t9 schema has `isDisplayOriginalPreedit: false`, so its preedit is a display form (e.g. `a` for `2`, `ai'96` for `2496`) - parsing it was overwriting the tracker with the trailing digit run and breaking pinyin chips for fresh input. The tracker (built from user key events in `forwardKeyEvent`) is now the authoritative source for `unresolvedDigits`; sync only detects empty Rime preedit (to clear) and records `rawPreedit` as a debug fallback.
 - Phase B Steps 4-5: DONE. `getT9PresentationState` builds one snapshot; `CandidatesView.updateUi` renders top row and pinyin row from it and `evaluateVisibility` takes the snapshot into account. `truncateCommentByKeyCount` was removed; comment-based truncation is no longer used for the top row. Under Option B, when `resolvedSegments` is non-empty the top reading prefers the model build (`resolved pinyin + first pinyin for unresolvedDigits`, e.g. `ai wo`) over the first Hanzi candidate's comment (which would otherwise show something like `bi wo`). When `resolvedSegments` is empty the comment path is preferred.
-- Phase B addendum - Hanzi filtering: DONE. `FcitxInputMethodService.filterPagedByResolvedPinyin` narrows the candidate page (client-side) to entries whose comment starts with the resolved-pinyin prefix. `CandidatesView.updateUi` calls it before rendering, and the candidate click handler translates the filtered index back to the original fcitx index via `t9ShownPaged` so taps still select the intended character. Trade-off: this is a client-side trim of the current Rime page, so if Rime's page contains few `ai*` entries the row can look sparse; in that case the filter falls back to the unfiltered page rather than showing an empty row. A deeper fix (making Rime itself narrow to `ai*`) would require pushing letters back into Rime, which reintroduces the text-leak that drove Option B, so it is deferred.
+- Phase B addendum - Hanzi filtering: DONE. `FcitxInputMethodService.filterPagedByResolvedPinyin` narrows the candidate page (client-side) to entries whose comment starts with the resolved-pinyin prefix. `CandidatesView.updateUi` calls it before rendering and owns the visible Hanzi cursor for the filtered page. Touch selection and physical OK translate the visible filtered candidate back to the original fcitx index before selecting, so filtered selections do not commit raw index 0. If a resolved prefix is active, `CandidatesView` also asks fcitx for a wider bulk candidate slice and filters it client-side so sparse matches like `ci*` are not limited to 1-2 items from the current page. Bulk-filtered selections use `FcitxAPI.selectFromAll`, backed by a direct native `selectCandidateFromAll` bulk selection path, to commit by global candidate index. If no matches are available yet, the page stays filtered/empty and keeps pagination state; bottom-row Down or pagination arrows can still request the next page.
+- First-load empty-preedit guard: DONE, NEEDS DEVICE VERIFICATION. `syncT9CompositionWithInputPanel` now only clears the optimistic T9 tracker/model on empty preedit after Rime has previously reported a non-empty preedit, preventing startup/stale empty events from dropping the first digit (`24` showing only `ghi` in the pinyin row).
 - Phase C Step 6: DONE (with design change). Any delete while `resolvedSegments` is non-empty first reopens the last resolved segment back into the unresolved suffix (prepends its `sourceDigits` to the current `unresolvedDigits`), no Rime keys replayed. The "only reopen when unresolved is empty" variant was replaced by the user-requested "selection is the most recent decision, so delete undoes it first". Wired in three places: `handleVirtualT9Backspace` (on-screen delete, returns `Boolean`), `onKeyDown` intercept for `KEYCODE_DEL`/mapped `KEYCODE_BACK` (consumes the key + UP via `t9ConsumedNavigationKeyUp`), and `CommonKeyActionListener.SymAction` (skips `sendKey` on consumed press). Each reopen path also calls `candidatesView?.refreshT9Ui()` because no fcitx event fires.
 - Step removed: `handleFcitxEvent.CommitStringEvent` letter intercept is gone. Under Option B we never push letters into Rime, so Rime cannot emit a letter commit; the intercept became dead code that could mask unrelated bugs.
 - Phase C Step 7 (focus-out / touch-away coherent clear): CODED, NEEDS DEVICE VERIFICATION. `clearChineseT9CompositionFromEditorTap()` now treats `T9CompositionModel` as clear-worthy state, not just the raw tracker/composing span. Cursor updates with an empty composing span in T9 Chinese mode now clear the Kotlin model plus visible transient rows immediately before asking fcitx to reset, preventing stale candidate/pinyin rows from surviving a tap-away.
-- Phase D: NOT STARTED.
+- Phase D Step 1 (remove six-digit truncation): CODED, NEEDS DEVICE VERIFICATION. `T9PinyinUtils.t9KeyToPinyin` and `matchedPrefixLength` now use the full filtered digit sequence instead of `take(6)`.
+- Phase D Step 2 (remove stale component): DONE. Unused `app/src/main/java/org/fcitx/fcitx5/android/input/t9/PinyinSelectionBarComponent.kt` deleted; active pinyin row remains `CandidatesView` + `T9PinyinChipAdapter`.
+- Phase D Step 3 (T9 naming/gating): DONE. Stored key `use_t9_keyboard_layout` remains unchanged for compatibility, but user-facing strings now say "T9 input mode" and local feature-gate variables in service/candidate/input-device code use `t9InputModeEnabled`. Actual layout-selection code still uses layout naming.
+- Phase D remaining items: NOT STARTED.
 
 ## Ground Rules
 
@@ -51,7 +55,7 @@ Change:
   - `FcitxInputMethodService.selectT9Pinyin`
   - `FcitxInputMethodService.commitT9PinyinSelection`
   - `T9CompositionTracker`
-- Confirm `PinyinSelectionBarComponent.kt` is still unused.
+- Confirm `PinyinSelectionBarComponent.kt` is absent/removed and the active pinyin row is `CandidatesView` + `T9PinyinChipAdapter`.
 - Run the closest available compile/build check.
 
 Files:
@@ -259,11 +263,11 @@ Verify:
 
 ## Phase D - Cleanup After Core Flow Works
 
-Do these only after Phases A-C pass manual verification:
+Prefer to do these after Phases A-C pass manual verification. Steps 1-3 are already coded as low-risk cleanup.
 
-1. Remove six-digit truncation from `T9PinyinUtils.t9KeyToPinyin` and `matchedPrefixLength`.
-2. Quarantine or remove stale `PinyinSelectionBarComponent.kt`.
-3. Recheck `use_t9_keyboard_layout` local naming and semantic gates.
+1. ~~Remove six-digit truncation from `T9PinyinUtils.t9KeyToPinyin` and `matchedPrefixLength`.~~ (coded, needs device verification for long sequences)
+2. ~~Quarantine or remove stale `PinyinSelectionBarComponent.kt`.~~ (done: removed unused file)
+3. ~~Recheck `use_t9_keyboard_layout` local naming and semantic gates.~~ (done: no migration; strings and local feature-gate names clarified)
 4. Recheck English STAR and multi-tap display.
 5. Recheck number-mode long press and Chinese-mode STAR punctuation toggle.
 6. Consider extracting `T9InputController` only after behaviour is stable.
@@ -284,6 +288,18 @@ Do these only after Phases A-C pass manual verification:
    Expected: old pinyin candidates never reappear.
 7. Type, tap away, return, type again.
    Expected: old Rime composition and default-looking candidate bars do not return.
+8. Type a long sequence (7+ digits), select pinyin, then continue/delete.
+   Expected: pinyin options and matched prefix length are computed from the full sequence (no silent 6-digit cutoff).
+9. `2496 -> select ai -> select yo -> choose 哎哟 with OK`.
+   Expected: `哎哟` commits, not the unfiltered first candidate such as `比我`.
+10. `2496 -> select ai`, keep focus in Hanzi row, press Right.
+   Expected: the visible Hanzi highlight moves on the first Right press.
+11. With focus in Hanzi row, press Down.
+   Expected: the next Hanzi candidate page is requested.
+12. `2496 -> select ci` when the current page has no `ci*` matches.
+   Expected: unrelated candidates are not shown; bulk-filtered results should show more than just the 1-2 matches from one raw page when available.
+13. Fresh app/IME start, type `24`.
+   Expected: pinyin row includes `ai`; it should not lose the first digit and show only `ghi`.
 
 ## Intentionally Out Of Scope
 

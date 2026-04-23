@@ -208,7 +208,7 @@ object T9PinyinUtils {
      */
     fun t9KeyToPinyin(t9DigitSequence: String?): List<String> {
         if (t9DigitSequence.isNullOrEmpty()) return emptyList()
-        val digits = t9DigitSequence.take(6).filter { it in '2'..'9' }
+        val digits = t9DigitSequence.filter { it in '2'..'9' }
         if (digits.isEmpty()) return emptyList()
         val groupSeq = groupSequenceFromDigits(digits)
         val result = mutableListOf<String>()
@@ -225,7 +225,7 @@ object T9PinyinUtils {
 
     fun matchedPrefixLength(t9DigitSequence: String?, pinyin: String?): Int {
         if (t9DigitSequence.isNullOrEmpty() || pinyin.isNullOrEmpty()) return 0
-        val digits = t9DigitSequence.take(6).filter { it in '2'..'9' }
+        val digits = t9DigitSequence.filter { it in '2'..'9' }
         if (digits.isEmpty()) return 0
         val groupSeq = groupSequenceFromDigits(digits)
         for (len in groupSeq.length downTo 1) {

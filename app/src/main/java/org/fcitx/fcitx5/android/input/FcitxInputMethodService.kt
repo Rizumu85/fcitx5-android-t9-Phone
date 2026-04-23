@@ -132,6 +132,7 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
     private fun clearT9CompositionState() {
         t9CompositionTracker.clear()
         t9CompositionModel = T9CompositionModel()
+        t9ObservedNonEmptyPreedit = false
     }
 
     private fun hasT9CompositionState(): Boolean =
@@ -149,7 +150,7 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
      * shrink-unresolved-suffix path (caller still forwards the backspace to fcitx/Rime).
      */
     fun handleVirtualT9Backspace(): Boolean {
-        if (!useT9KeyboardLayout || currentT9Mode != T9InputMode.CHINESE) return false
+        if (!t9InputModeEnabled || currentT9Mode != T9InputMode.CHINESE) return false
         if (shouldReopenLastResolvedSegment()) {
             val consumed = popLastResolvedSegment()
             if (consumed) candidatesView?.refreshT9Ui()
@@ -166,7 +167,7 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
      * single delete rolls that back rather than editing the trailing digit suffix.
      */
     private fun shouldReopenLastResolvedSegment(): Boolean =
-        useT9KeyboardLayout &&
+        t9InputModeEnabled &&
             currentT9Mode == T9InputMode.CHINESE &&
             t9CompositionModel.resolvedSegments.isNotEmpty()
 
@@ -204,7 +205,7 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
     private val prefs = AppPrefs.getInstance()
     private val keyboardPrefs = prefs.keyboard
     private val inlineSuggestions by keyboardPrefs.inlineSuggestions
-    private val useT9KeyboardLayout by keyboardPrefs.useT9KeyboardLayout
+    private val t9InputModeEnabled by keyboardPrefs.useT9KeyboardLayout
     private val ignoreSystemCursor by prefs.advanced.ignoreSystemCursor
 
     private val recreateInputViewPrefs: Array<ManagedPreference<*>> = arrayOf(
@@ -414,7 +415,7 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
     }
 
     private fun handleBackspaceKey() {
-        if (useT9KeyboardLayout && currentT9Mode == T9InputMode.CHINESE) {
+        if (t9InputModeEnabled && currentT9Mode == T9InputMode.CHINESE) {
             t9CompositionTracker.backspace()
             updateT9CompositionModelFromTracker()
         }
@@ -664,9 +665,9 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
     private var inputViewLocation = intArrayOf(0, 0)
 
     override fun onComputeInsets(outInsets: Insets) {
-        // When using virtual keyboard OR T9 layout (physical T9 phone with on-screen control bar),
+        // When using virtual keyboard OR T9 input mode (physical T9 phone with on-screen control bar),
         // make the area of keyboardView touchable so it can receive tap events.
-        if (inputDeviceMgr.isVirtualKeyboard || useT9KeyboardLayout) {
+        if (inputDeviceMgr.isVirtualKeyboard || t9InputModeEnabled) {
             inputView?.keyboardView?.getLocationInWindow(inputViewLocation)
             outInsets.apply {
                 contentTopInsets = inputViewLocation[1]
@@ -791,6 +792,7 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
     /** T9 composition tracker for pinyin selection bar (digit sequence for current segment). */
     private val t9CompositionTracker = T9CompositionTracker()
     private var t9CompositionModel = T9CompositionModel()
+    private var t9ObservedNonEmptyPreedit = false
 
     private fun updateT9CompositionModelFromTracker(preserveResolved: Boolean = t9CompositionModel.hasResolvedSegments) {
         val unresolvedDigits = t9CompositionTracker.getCurrentSegment()
@@ -863,7 +865,7 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
     }
 
     private fun clearChineseT9CompositionFromEditorTap() {
-        if (!useT9KeyboardLayout || currentT9Mode != T9InputMode.CHINESE) return
+        if (!t9InputModeEnabled || currentT9Mode != T9InputMode.CHINESE) return
         if (getT9InputState() != T9InputState.CHINESE_COMPOSING && !hasT9CompositionState()) {
             return
         }
@@ -1218,7 +1220,7 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
         cachedKeyEvents.put(timestamp, event)
         val sym = KeySym.fromKeyEvent(event)
         if (sym != null) {
-            if (useT9KeyboardLayout && currentT9Mode == T9InputMode.CHINESE && event.action == KeyEvent.ACTION_DOWN) {
+            if (t9InputModeEnabled && currentT9Mode == T9InputMode.CHINESE && event.action == KeyEvent.ACTION_DOWN) {
                 when (event.keyCode) {
                     KeyEvent.KEYCODE_DEL -> t9CompositionTracker.backspace()
                     KeyEvent.KEYCODE_1 -> t9CompositionTracker.appendApostrophe()
@@ -1261,14 +1263,17 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
      * to record a display fallback; we never rebuild `unresolvedDigits` from it.
      */
     fun syncT9CompositionWithInputPanel(data: FcitxEvent.InputPanelEvent.Data) {
-        if (!useT9KeyboardLayout || currentT9Mode != T9InputMode.CHINESE) return
+        if (!t9InputModeEnabled || currentT9Mode != T9InputMode.CHINESE) return
         val rawPreedit = data.preedit.toString()
         if (rawPreedit.isEmpty()) {
-            if (!t9CompositionTracker.isEmpty() || t9CompositionModel != T9CompositionModel()) {
+            if (t9ObservedNonEmptyPreedit &&
+                (!t9CompositionTracker.isEmpty() || t9CompositionModel != T9CompositionModel())
+            ) {
                 clearT9CompositionState()
             }
             return
         }
+        t9ObservedNonEmptyPreedit = true
         if (t9CompositionModel.rawPreedit != rawPreedit) {
             t9CompositionModel = t9CompositionModel.copy(rawPreedit = rawPreedit)
         }
@@ -1285,7 +1290,7 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
 
     /** Candidate pinyin list for current T9 segment; empty if segment empty or not T9. */
     fun getT9PinyinCandidates(): List<String> =
-        if (useT9KeyboardLayout && currentT9Mode == T9InputMode.CHINESE)
+        if (t9InputModeEnabled && currentT9Mode == T9InputMode.CHINESE)
             T9PinyinUtils.t9KeyToPinyin(getCurrentT9Segment())
         else
             emptyList()
@@ -1329,7 +1334,7 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
 
     /** Preedit for the shared T9 display row; null if there is nothing to show. */
     fun getT9PreeditDisplay(rawComposition: String? = null): FormattedText? {
-        if (!useT9KeyboardLayout) return null
+        if (!t9InputModeEnabled) return null
         return when (currentT9Mode) {
             T9InputMode.CHINESE -> {
                 if (rawComposition != null) buildT9PreeditDisplay(rawComposition)
@@ -1349,7 +1354,7 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
         inputPanel: FcitxEvent.InputPanelEvent.Data,
         paged: FcitxEvent.PagedCandidateEvent.Data
     ): T9PresentationState {
-        if (!useT9KeyboardLayout || currentT9Mode != T9InputMode.CHINESE) {
+        if (!t9InputModeEnabled || currentT9Mode != T9InputMode.CHINESE) {
             return T9PresentationState(null, emptyList())
         }
         val comment = paged.candidates.getOrNull(paged.cursorIndex)?.comment
@@ -1379,21 +1384,22 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
      * the Hanzi row to the reading the user chose.
      *
      * Note: Rime is still composing the full digit sequence (Option B), so this filter
-     * only trims the current page client-side. If the current page has few matches the
-     * row may look sparse; that's acceptable here and can be revisited later if needed.
+     * only trims the current page client-side. If the current page has no matches, show
+     * an empty candidate page with pagination state instead of falling back to unrelated
+     * Hanzi; the user can move to the next page with the bottom-row Down key or arrows.
      */
     fun filterPagedByResolvedPinyin(
         paged: FcitxEvent.PagedCandidateEvent.Data
     ): FcitxEvent.PagedCandidateEvent.Data {
-        if (!useT9KeyboardLayout || currentT9Mode != T9InputMode.CHINESE) return paged
-        val resolved = t9CompositionModel.resolvedSegments
-        if (resolved.isEmpty() || paged.candidates.isEmpty()) return paged
-        val expected = resolved.joinToString(" ") { it.pinyin }
+        if (!t9InputModeEnabled || currentT9Mode != T9InputMode.CHINESE) return paged
+        val expected = getT9ResolvedPinyinPrefix() ?: return paged
+        if (paged.candidates.isEmpty()) return paged
         val filteredList = paged.candidates.filter { candidate ->
-            val normalized = candidate.comment.replace('\'', ' ').trim()
-            normalized == expected || normalized.startsWith("$expected ")
+            candidateMatchesT9ResolvedPrefix(candidate, expected)
         }
-        if (filteredList.isEmpty()) return paged // fall back to unfiltered rather than a blank row
+        if (filteredList.isEmpty()) {
+            return paged.copy(candidates = emptyArray(), cursorIndex = -1)
+        }
         if (filteredList.size == paged.candidates.size) return paged
         val originallyHighlighted = paged.candidates.getOrNull(paged.cursorIndex)
         val newCursor = originallyHighlighted
@@ -1404,6 +1410,21 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
             candidates = filteredList.toTypedArray(),
             cursorIndex = newCursor
         )
+    }
+
+    fun getT9ResolvedPinyinPrefix(): String? {
+        if (!t9InputModeEnabled || currentT9Mode != T9InputMode.CHINESE) return null
+        val resolved = t9CompositionModel.resolvedSegments
+        if (resolved.isEmpty()) return null
+        return resolved.joinToString(" ") { it.pinyin }
+    }
+
+    fun candidateMatchesT9ResolvedPrefix(
+        candidate: FcitxEvent.Candidate,
+        expected: String
+    ): Boolean {
+        val normalized = candidate.comment.replace('\'', ' ').trim()
+        return normalized == expected || normalized.startsWith("$expected ")
     }
 
     /**
@@ -1445,26 +1466,39 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
     }
 
     private fun handleT9CandidateFocusNavigation(keyCode: Int, event: KeyEvent): Boolean {
-        if (!useT9KeyboardLayout || currentT9Mode != T9InputMode.CHINESE) return false
+        if (!t9InputModeEnabled || currentT9Mode != T9InputMode.CHINESE) return false
         if (event.action != KeyEvent.ACTION_DOWN) return false
-        if (getT9PinyinCandidates().isEmpty()) return false
+        val topRowVisible = getT9PinyinCandidates().isNotEmpty()
+        val focus = getT9CandidateFocus()
         val handled = when {
-            keyCode in t9FocusUpKeyCodes -> {
+            keyCode in t9FocusUpKeyCodes && topRowVisible -> {
                 moveT9CandidateFocus(T9CandidateFocus.TOP)
                 true
             }
-            keyCode in t9FocusDownKeyCodes -> {
+            keyCode in t9FocusDownKeyCodes && focus == T9CandidateFocus.TOP -> {
                 moveT9CandidateFocus(T9CandidateFocus.BOTTOM)
                 true
             }
-            keyCode in t9FocusLeftKeyCodes && getT9CandidateFocus() == T9CandidateFocus.TOP -> {
+            keyCode in t9FocusDownKeyCodes && focus == T9CandidateFocus.BOTTOM -> {
+                candidatesView?.offsetT9HanziCandidatePage(1) == true
+            }
+            keyCode in t9FocusLeftKeyCodes && focus == T9CandidateFocus.TOP -> {
                 candidatesView?.moveHighlightedT9Pinyin(-1) == true
             }
-            keyCode in t9FocusRightKeyCodes && getT9CandidateFocus() == T9CandidateFocus.TOP -> {
+            keyCode in t9FocusRightKeyCodes && focus == T9CandidateFocus.TOP -> {
                 candidatesView?.moveHighlightedT9Pinyin(1) == true
             }
-            keyCode in t9FocusOkKeyCodes && getT9CandidateFocus() == T9CandidateFocus.TOP -> {
+            keyCode in t9FocusLeftKeyCodes && focus == T9CandidateFocus.BOTTOM -> {
+                candidatesView?.moveHighlightedT9HanziCandidate(-1) == true
+            }
+            keyCode in t9FocusRightKeyCodes && focus == T9CandidateFocus.BOTTOM -> {
+                candidatesView?.moveHighlightedT9HanziCandidate(1) == true
+            }
+            keyCode in t9FocusOkKeyCodes && focus == T9CandidateFocus.TOP -> {
                 commitHighlightedT9Pinyin()
+            }
+            keyCode in t9FocusOkKeyCodes && focus == T9CandidateFocus.BOTTOM -> {
+                candidatesView?.commitHighlightedT9HanziCandidate() == true
             }
             else -> false
         }
@@ -1854,7 +1888,7 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
         if (newSelStart != newSelEnd) return
         // do reset if composing is empty && input panel is not empty
         if (composing.isEmpty()) {
-            if (useT9KeyboardLayout && currentT9Mode == T9InputMode.CHINESE) {
+            if (t9InputModeEnabled && currentT9Mode == T9InputMode.CHINESE) {
                 clearT9CompositionState()
                 clearTransientInputUiState()
                 currentInputConnection?.finishComposingText()

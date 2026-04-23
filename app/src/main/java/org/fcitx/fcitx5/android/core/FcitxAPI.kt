@@ -53,6 +53,7 @@ interface FcitxAPI {
     suspend fun sendKey(sym: KeySym, states: KeyStates, code: Int = 0, up: Boolean = false, timestamp: Int = -1)
 
     suspend fun select(idx: Int): Boolean
+    suspend fun selectFromAll(idx: Int): Boolean
     suspend fun isEmpty(): Boolean
     suspend fun reset()
     suspend fun moveCursor(position: Int)

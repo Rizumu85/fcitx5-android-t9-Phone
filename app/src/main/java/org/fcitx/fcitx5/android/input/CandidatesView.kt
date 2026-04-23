@@ -142,6 +142,13 @@ class CandidatesView(
      * being sent to fcitx, otherwise taps on filtered rows would pick the wrong character.
      */
     private var t9ShownPaged: FcitxEvent.PagedCandidateEvent.Data? = null
+    private var t9ShownCandidateSignature = ""
+    private var t9HanziCursorIndex = -1
+    private var t9ShownOriginalIndices = intArrayOf()
+    private var t9ShownUsesBulkSelection = false
+    private var t9BulkFilterRequestSignature = ""
+    private var t9BulkFilteredPaged: FcitxEvent.PagedCandidateEvent.Data? = null
+    private var t9BulkFilteredOriginalIndices = intArrayOf()
 
     private val showPaginationArrows by candidatesPrefs.showPaginationArrows
     private val candidatesUi = PagedCandidatesUi(
@@ -151,13 +158,7 @@ class CandidatesView(
         onCandidateClick = { shownIndex ->
             service.moveT9CandidateFocus(FcitxInputMethodService.T9CandidateFocus.BOTTOM)
             updateT9FocusIndicator()
-            val shown = t9ShownPaged
-            val originalIndex = if (shown != null && shown !== paged) {
-                val target = shown.candidates.getOrNull(shownIndex)
-                val idx = target?.let { paged.candidates.indexOf(it) } ?: -1
-                if (idx >= 0) idx else shownIndex
-            } else shownIndex
-            fcitx.launchOnReady { it.select(originalIndex) }
+            selectT9ShownHanziCandidate(shownIndex)
         },
         onPrevPage = { fcitx.launchOnReady { it.offsetCandidatePage(-1) } },
         onNextPage = { fcitx.launchOnReady { it.offsetCandidatePage(1) } }
@@ -281,6 +282,7 @@ class CandidatesView(
     fun clearTransientState() {
         inputPanel = FcitxEvent.InputPanelEvent.Data()
         paged = FcitxEvent.PagedCandidateEvent.Data.Empty
+        resetT9BulkFilterState()
         preeditUi.update(inputPanel)
         preeditUi.root.visibility = GONE
         pinyinBarAdapter.clear()
@@ -315,6 +317,43 @@ class CandidatesView(
         return moved
     }
 
+    fun moveHighlightedT9HanziCandidate(delta: Int): Boolean {
+        val shown = t9ShownPaged ?: return false
+        if (shown.candidates.isEmpty()) return false
+        val next = shown.cursorIndex + delta
+        return when {
+            next in shown.candidates.indices -> {
+                t9HanziCursorIndex = next
+                val updated = shown.copy(cursorIndex = next)
+                t9ShownPaged = updated
+                candidatesUi.update(updated, orientation)
+                true
+            }
+            next >= shown.candidates.size && shown.hasNext -> {
+                offsetT9HanziCandidatePage(1)
+            }
+            next < 0 && shown.hasPrev -> {
+                offsetT9HanziCandidatePage(-1)
+            }
+            else -> false
+        }
+    }
+
+    fun offsetT9HanziCandidatePage(delta: Int): Boolean {
+        val shown = t9ShownPaged ?: return false
+        val canOffset = if (delta > 0) shown.hasNext else shown.hasPrev
+        if (!canOffset) return false
+        fcitx.launchOnReady { it.offsetCandidatePage(delta) }
+        return true
+    }
+
+    fun commitHighlightedT9HanziCandidate(): Boolean {
+        val shown = t9ShownPaged ?: return false
+        val shownIndex = shown.cursorIndex
+        if (shownIndex !in shown.candidates.indices) return false
+        return selectT9ShownHanziCandidate(shownIndex)
+    }
+
     private fun evaluateVisibility(topReading: FormattedText?, pinyinRowVisible: Boolean): Boolean {
         return inputPanel.preedit.isNotEmpty() ||
                 paged.candidates.isNotEmpty() ||
@@ -331,11 +370,23 @@ class CandidatesView(
     }
 
     private fun updateUi() {
-        val useT9 = AppPrefs.getInstance().keyboard.useT9KeyboardLayout.getValue()
-        val effectivePaged = if (useT9) service.filterPagedByResolvedPinyin(paged) else paged
-        t9ShownPaged = effectivePaged
-        val t9State = if (useT9) {
+        val t9InputModeEnabled = AppPrefs.getInstance().keyboard.useT9KeyboardLayout.getValue()
+        if (t9InputModeEnabled) {
             service.syncT9CompositionWithInputPanel(inputPanel)
+        }
+        requestT9BulkFilteredCandidatesIfNeeded(t9InputModeEnabled)
+        val filteredPaged = if (t9InputModeEnabled) service.filterPagedByResolvedPinyin(paged) else paged
+        val useBulkFiltered = t9InputModeEnabled && t9BulkFilteredPaged != null
+        val candidateSource = t9BulkFilteredPaged ?: filteredPaged
+        val effectivePaged = if (t9InputModeEnabled) applyT9HanziCursor(candidateSource) else paged
+        t9ShownPaged = effectivePaged
+        t9ShownUsesBulkSelection = useBulkFiltered
+        t9ShownOriginalIndices = if (useBulkFiltered) {
+            t9BulkFilteredOriginalIndices
+        } else {
+            buildOriginalIndicesForPaged(effectivePaged)
+        }
+        val t9State = if (t9InputModeEnabled) {
             service.getT9PresentationState(inputPanel, effectivePaged)
         } else {
             null
@@ -346,13 +397,156 @@ class CandidatesView(
         preeditUi.update(panelToShow)
         preeditUi.root.visibility = if (preeditUi.visible) VISIBLE else GONE
         candidatesUi.update(effectivePaged, orientation)
-        updatePinyinBar(t9State?.pinyinOptions ?: emptyList(), useT9)
+        updatePinyinBar(t9State?.pinyinOptions ?: emptyList(), t9InputModeEnabled)
         updateT9FocusIndicator()
         if (evaluateVisibility(t9State?.topReading, t9State?.pinyinRowVisible == true)) {
             visibility = VISIBLE
         } else {
             // RecyclerView won't update its items when ancestor view is GONE
             visibility = INVISIBLE
+        }
+    }
+
+    private fun applyT9HanziCursor(
+        data: FcitxEvent.PagedCandidateEvent.Data
+    ): FcitxEvent.PagedCandidateEvent.Data {
+        val signature = buildString {
+            data.candidates.forEach {
+                append(it.label).append('|').append(it.text).append('|').append(it.comment).append('\n')
+            }
+            append(data.hasPrev).append('|').append(data.hasNext)
+        }
+        if (signature != t9ShownCandidateSignature) {
+            t9ShownCandidateSignature = signature
+            t9HanziCursorIndex = data.cursorIndex.takeIf { it in data.candidates.indices }
+                ?: data.candidates.indices.firstOrNull()
+                ?: -1
+        } else if (t9HanziCursorIndex !in data.candidates.indices) {
+            t9HanziCursorIndex = data.candidates.indices.firstOrNull() ?: -1
+        }
+        return if (data.cursorIndex == t9HanziCursorIndex) data else data.copy(cursorIndex = t9HanziCursorIndex)
+    }
+
+    private fun selectT9ShownHanziCandidate(shownIndex: Int): Boolean {
+        val shown = t9ShownPaged ?: return false
+        val originalIndex = originalCandidateIndexForShown(shown, shownIndex) ?: return false
+        if (originalIndex < 0) return false
+        fcitx.launchOnReady {
+            if (t9ShownUsesBulkSelection) {
+                it.selectFromAll(originalIndex)
+            } else {
+                it.select(originalIndex)
+            }
+        }
+        return true
+    }
+
+    private fun originalCandidateIndexForShown(
+        shown: FcitxEvent.PagedCandidateEvent.Data,
+        shownIndex: Int
+    ): Int? {
+        t9ShownOriginalIndices.getOrNull(shownIndex)?.takeIf { it >= 0 }?.let { return it }
+        val target = shown.candidates.getOrNull(shownIndex) ?: return null
+        if (shown.candidates.contentEquals(paged.candidates)) return shownIndex
+        val sameCandidateBeforeTarget = shown.candidates
+            .take(shownIndex)
+            .count { it == target }
+        var seen = 0
+        paged.candidates.forEachIndexed { rawIndex, rawCandidate ->
+            if (rawCandidate == target) {
+                if (seen == sameCandidateBeforeTarget) return rawIndex
+                seen += 1
+            }
+        }
+        return null
+    }
+
+    private fun buildOriginalIndicesForPaged(
+        shown: FcitxEvent.PagedCandidateEvent.Data
+    ): IntArray {
+        if (shown.candidates.isEmpty()) return intArrayOf()
+        if (shown.candidates.contentEquals(paged.candidates)) {
+            return IntArray(shown.candidates.size) { it }
+        }
+        val seenByCandidate = mutableMapOf<FcitxEvent.Candidate, Int>()
+        return IntArray(shown.candidates.size) { shownIndex ->
+            val target = shown.candidates[shownIndex]
+            val targetSeen = seenByCandidate.getOrDefault(target, 0)
+            seenByCandidate[target] = targetSeen + 1
+            var seen = 0
+            paged.candidates.forEachIndexed { rawIndex, rawCandidate ->
+                if (rawCandidate == target) {
+                    if (seen == targetSeen) return@IntArray rawIndex
+                    seen += 1
+                }
+            }
+            -1
+        }
+    }
+
+    private fun requestT9BulkFilteredCandidatesIfNeeded(t9InputModeEnabled: Boolean) {
+        if (!t9InputModeEnabled) {
+            resetT9BulkFilterState()
+            return
+        }
+        val expected = service.getT9ResolvedPinyinPrefix()
+        if (expected == null) {
+            resetT9BulkFilterState()
+            return
+        }
+        val signature = buildString {
+            append(expected).append('|')
+            append(inputPanel.preedit).append('|')
+            append(paged.candidates.joinToString(separator = "\n") { "${it.text}|${it.comment}" })
+        }
+        if (signature == t9BulkFilterRequestSignature) return
+        t9BulkFilterRequestSignature = signature
+        t9BulkFilteredPaged = null
+        t9BulkFilteredOriginalIndices = intArrayOf()
+        fcitx.launchOnReady { api ->
+            val rawCandidates = api.getCandidates(0, T9_BULK_FILTER_LIMIT)
+            if (signature != t9BulkFilterRequestSignature) return@launchOnReady
+            val filtered = rawCandidates.mapIndexedNotNull { index, raw ->
+                parseBulkCandidate(raw)?.takeIf {
+                    service.candidateMatchesT9ResolvedPrefix(it, expected)
+                }?.let { index to it }
+            }
+            t9BulkFilteredOriginalIndices = filtered.map { it.first }.toIntArray()
+            t9BulkFilteredPaged = if (filtered.isEmpty()) {
+                null
+            } else {
+                FcitxEvent.PagedCandidateEvent.Data(
+                    candidates = filtered.map { it.second }.toTypedArray(),
+                    cursorIndex = 0,
+                    layoutHint = paged.layoutHint,
+                    hasPrev = false,
+                    hasNext = rawCandidates.size >= T9_BULK_FILTER_LIMIT
+                )
+            }
+            refreshT9Ui()
+        }
+    }
+
+    private fun resetT9BulkFilterState() {
+        t9BulkFilterRequestSignature = ""
+        t9BulkFilteredPaged = null
+        t9BulkFilteredOriginalIndices = intArrayOf()
+        t9ShownOriginalIndices = intArrayOf()
+        t9ShownUsesBulkSelection = false
+    }
+
+    private fun parseBulkCandidate(raw: String): FcitxEvent.Candidate? {
+        val trimmed = raw.trim()
+        if (trimmed.isEmpty()) return null
+        val splitAt = trimmed.indexOf(' ')
+        return if (splitAt < 0) {
+            FcitxEvent.Candidate("", trimmed, "")
+        } else {
+            FcitxEvent.Candidate(
+                label = "",
+                text = trimmed.substring(0, splitAt),
+                comment = trimmed.substring(splitAt + 1).trim()
+            )
         }
     }
 
@@ -538,5 +732,9 @@ class CandidatesView(
         viewTreeObserver.removeOnGlobalLayoutListener(layoutListener)
         touchEventReceiverWindow.dismiss()
         super.onDetachedFromWindow()
+    }
+
+    companion object {
+        private const val T9_BULK_FILTER_LIMIT = 80
     }
 }

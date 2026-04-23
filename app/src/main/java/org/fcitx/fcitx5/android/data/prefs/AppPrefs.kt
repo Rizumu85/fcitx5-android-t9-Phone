@@ -178,6 +178,8 @@ class AppPrefs(private val sharedPreferences: SharedPreferences) {
             "lang_switch_key_behavior",
             LangSwitchBehavior.T9ModeSwitch
         ) { showLangSwitchKey.getValue() }
+        // Historical key name kept for preference compatibility; semantically this enables
+        // the whole T9 input mode, not only the visual keyboard layout.
         val useT9KeyboardLayout =
             switch(R.string.use_t9_keyboard_layout, "use_t9_keyboard_layout", true)
 

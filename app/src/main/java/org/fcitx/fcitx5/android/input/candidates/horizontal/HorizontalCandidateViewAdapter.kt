@@ -26,7 +26,7 @@ open class HorizontalCandidateViewAdapter(val theme: Theme) :
         setHasStableIds(true)
     }
 
-    private val useT9KeyboardLayout by AppPrefs.getInstance().keyboard.useT9KeyboardLayout
+    private val t9InputModeEnabled by AppPrefs.getInstance().keyboard.useT9KeyboardLayout
 
     var candidates: Array<String> = arrayOf()
         private set
@@ -62,7 +62,7 @@ open class HorizontalCandidateViewAdapter(val theme: Theme) :
      * For Chinese characters, we extract just the first characters before the space.
      */
     private fun stripComment(text: String): String {
-        if (!useT9KeyboardLayout) return text
+        if (!t9InputModeEnabled) return text
         // Find the first space that separates text from comment
         val spaceIndex = text.indexOf(' ')
         return if (spaceIndex > 0) text.substring(0, spaceIndex) else text

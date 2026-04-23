@@ -373,6 +373,11 @@ bool AndroidFrontend::selectCandidate(int idx) {
     }
 }
 
+bool AndroidFrontend::selectCandidateFromAll(int idx) {
+    if (!activeIC_) return false;
+    return activeIC_->selectCandidateBulk(idx);
+}
+
 std::vector<CandidateAction> AndroidFrontend::getCandidateActions(const int idx) {
     if (!activeIC_) return {};
     return activeIC_->getCandidateAction(idx);

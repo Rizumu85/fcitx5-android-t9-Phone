@@ -24,7 +24,7 @@ class LabeledCandidateItemUi(
     private val highlightCornerRadiusPx: Int
 ) : Ui {
 
-    private val useT9KeyboardLayout by AppPrefs.getInstance().keyboard.useT9KeyboardLayout
+    private val t9InputModeEnabled by AppPrefs.getInstance().keyboard.useT9KeyboardLayout
 
     override val root = textView {
         setupTextView(this)
@@ -36,11 +36,11 @@ class LabeledCandidateItemUi(
         val altFg = if (active) theme.genericActiveForegroundColor else theme.candidateCommentColor
         root.text = buildSpannedString {
             // Hide label and comment in T9 mode for cleaner display
-            if (!useT9KeyboardLayout) {
+            if (!t9InputModeEnabled) {
                 color(labelFg) { append(candidate.label) }
             }
             color(fg) { append(candidate.text) }
-            if (!useT9KeyboardLayout && candidate.comment.isNotBlank()) {
+            if (!t9InputModeEnabled && candidate.comment.isNotBlank()) {
                 append(" ")
                 color(altFg) { append(candidate.comment) }
             }

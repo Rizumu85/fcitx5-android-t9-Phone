@@ -47,7 +47,7 @@ Current source was checked after several bug-fix rounds and the latest uncommitt
 - Active pinyin adapter: `app/src/main/java/org/fcitx/fcitx5/android/input/t9/T9PinyinChipAdapter.kt`.
 - Tracker helper: `app/src/main/java/org/fcitx/fcitx5/android/input/t9/T9CompositionTracker.kt`.
 - Lookup helper: `app/src/main/java/org/fcitx/fcitx5/android/input/t9/T9PinyinUtils.kt`.
-- Stale-looking duplicate component: `app/src/main/java/org/fcitx/fcitx5/android/input/t9/PinyinSelectionBarComponent.kt`.
+- Removed stale duplicate component: `app/src/main/java/org/fcitx/fcitx5/android/input/t9/PinyinSelectionBarComponent.kt`.
 
 Important service methods already exist:
 
@@ -68,7 +68,7 @@ Important UI facts:
 - The pinyin row is already a RecyclerView backed by `T9PinyinChipAdapter`.
 - `PagedCandidatesUi.kt` owns the Hanzi candidate row.
 - `CandidatesView.updateUi()` now builds one T9 presentation state and renders from it.
-- When resolved pinyin exists, `CandidatesView.updateUi()` uses `filterPagedByResolvedPinyin` and stores `t9ShownPaged` so filtered tap indices can be translated back to fcitx indices.
+- When resolved pinyin exists, `CandidatesView.updateUi()` uses `filterPagedByResolvedPinyin`, can bulk-fetch a wider candidate slice, and stores visible-to-fcitx index mappings so touch/OK selection commits the shown Hanzi candidate.
 
 ## 4. Core Architectural Problem
 
@@ -115,12 +115,13 @@ Candidate focus remains service-owned state rendered by `CandidatesView.updateT9
 | C3 | High | RESOLVED | `CandidatesView.updateUi` | A single `T9PresentationState` is built via `getT9PresentationState`; `updateUi` no longer switches strategies mid-render and `truncateCommentByKeyCount` is gone. |
 | C4 | High | RESOLVED | `syncT9CompositionWithInputPanel` | Sync no longer parses Rime display preedit for raw digits. The key-event tracker is authoritative; empty preedit clears state; non-empty preedit is stored as display/debug fallback. |
 | C5 | High | CODED_NEEDS_DEVICE_VERIFY | Delete/back/focus-out paths | Delete/back now reopens the latest resolved segment before forwarding normal delete. Focus-out/touch-away now clears model/tracker/UI transient state on editor tap or cursor-away paths, but still needs on-device verification. |
-| C6 | Medium | OPEN | `T9PinyinUtils.kt` | `t9KeyToPinyin` and `matchedPrefixLength` still use `take(6)`, silently ignoring later keys. |
-| C7 | Medium | OPEN | `useT9KeyboardLayout` naming/gating | The stored setting is effectively "T9 mode enabled"; code should use that meaning consistently, but persisted-key migration is optional later. |
-| C8 | Medium | OPEN | `PinyinSelectionBarComponent.kt` | Duplicate pinyin-row implementation appears stale and can mislead future changes. |
+| C6 | Medium | CODED_NEEDS_DEVICE_VERIFY | `T9PinyinUtils.kt` | `t9KeyToPinyin` and `matchedPrefixLength` now use the full filtered digit sequence (no `take(6)`), but long-sequence behavior still needs device verification. |
+| C7 | Medium | RESOLVED | `useT9KeyboardLayout` naming/gating | Stored key remains `use_t9_keyboard_layout` for compatibility, but visible strings and local feature-gate variables now use "T9 input mode" semantics where behaviour is broader than layout selection. |
+| C8 | Medium | RESOLVED | `PinyinSelectionBarComponent.kt` | Stale duplicate pinyin-row implementation was removed; active path is `CandidatesView` + `T9PinyinChipAdapter`. |
 | C9 | Low | RESOLVED | `onKeyUp` | The duplicate `t9ConsumedNavigationKeyUp = null` cleanup is no longer present in the current source. |
 | C10 | Low | OPEN | English mode | English STAR and multi-tap display may still need cleanup, but they are not the main blocker for Chinese T9 coherence. |
-| C11 | Medium | RESOLVED_WITH_TRADEOFF | Hanzi row after pinyin selection | `filterPagedByResolvedPinyin` client-filters the current Rime page by resolved pinyin prefix and translates filtered tap indices back to original fcitx indices. If no candidates on the page match, it falls back to the unfiltered page rather than showing an empty row. |
+| C11 | Medium | CODED_NEEDS_DEVICE_VERIFY | Hanzi row after pinyin selection | `filterPagedByResolvedPinyin` client-filters the current Rime page by resolved pinyin prefix. `CandidatesView` also bulk-fetches a wider candidate slice and filters it client-side, then commits visible selections through `selectFromAll` by global candidate index. `selectFromAll` now uses a direct native bulk-selection path instead of toggling paging mode. Empty filtered pages no longer fall back to unrelated raw candidates; visible Right/Left/OK operate on the filtered row and Down can request the next page. |
+| C12 | High | CODED_NEEDS_DEVICE_VERIFY | First-load T9 tracker sync | Empty/stale input-panel updates could clear the optimistic tracker before Rime reported non-empty preedit, so fresh `24` could show only `ghi` in the pinyin row. `syncT9CompositionWithInputPanel` now ignores empty preedit clears until a non-empty preedit has been observed. |
 
 ### Additional change since last revision
 
@@ -128,6 +129,12 @@ Candidate focus remains service-owned state rendered by `CandidatesView.updateT9
 - `handleVirtualT9Backspace()` now returns `Boolean` so on-screen delete can skip sending a normal backspace when it was consumed by a model-only reopen.
 - Physical DEL/BACK uses the same reopen transition and consumes the matching key-up through `t9ConsumedNavigationKeyUp`.
 - Focus-out/touch-away handling now includes explicit model state in the clear condition and clears visible transient rows immediately when T9 Chinese cursor updates indicate composition has been abandoned.
+- `T9PinyinUtils.t9KeyToPinyin` and `matchedPrefixLength` no longer truncate input with `take(6)`; both now evaluate the full 2-9 digit sequence.
+- Removed unused `app/src/main/java/org/fcitx/fcitx5/android/input/t9/PinyinSelectionBarComponent.kt` to avoid duplicate/obsolete pinyin-row logic.
+- Clarified the historical `use_t9_keyboard_layout` setting: no key migration, but user-facing strings now say "T9 input mode" and local feature gates use `t9InputModeEnabled`.
+- Fixed the reported filtered-Hanzi regressions in code: no unfiltered fallback on empty filtered pages, no raw index-0 OK commit from the Hanzi row, first Right moves the visible filtered highlight, Down in Hanzi focus requests the next page, and a wider bulk-filtered result set can fill sparse `ci*` pages.
+- Added `selectFromAll` on `FcitxAPI` and a native `selectCandidateFromAll` bridge so bulk-filtered Hanzi candidates can be committed by global candidate index without depending on the current paged row or temporarily changing paging mode.
+- Added an empty-preedit guard so first-load stale input-panel events do not erase the first T9 digit before Rime has reported a real preedit.
 
 ## 7. Reference From yuyansdk
 
@@ -147,7 +154,7 @@ Do not port:
 
 ## 8. Recommended Implementation Order
 
-Steps 1-7 are coded; remaining work starts with device verification before lower-risk cleanup.
+Steps 1-7 and Phase D steps 1-3 are coded; remaining work starts with device verification before further cleanup.
 
 1. ~~Add a composition model that can represent resolved prefix plus unresolved suffix.~~ (done)
 2. ~~Make `selectT9Pinyin` update/mark that model transactionally instead of losing the selected prefix.~~ (done)
@@ -155,8 +162,11 @@ Steps 1-7 are coded; remaining work starts with device verification before lower
 4. ~~Make `CandidatesView` render the top row and pinyin row from that single snapshot.~~ (done)
 5. ~~Define delete/back transitions against the same model.~~ (done)
 6. ~~Implement focus-out/touch-away coherent clear.~~ (coded, needs device verification)
-7. Manually verify Option B on device, especially `2496 -> select ai -> delete`, touch-away/return, touch chip parity, physical OK parity, and filtered Hanzi tap correctness.
-8. Only then address lower-risk cleanup: six-digit truncation, preference naming, stale component removal, English cleanup, and controller extraction.
+7. ~~Remove six-digit truncation from `T9PinyinUtils` lookup paths.~~ (coded, needs device verification for long sequences)
+8. ~~Remove stale duplicate `PinyinSelectionBarComponent.kt`.~~ (done)
+9. ~~Clarify `use_t9_keyboard_layout` naming and semantic gates.~~ (done, persisted key unchanged)
+10. Manually verify Option B on device, especially `2496 -> select ai -> delete`, touch-away/return, touch chip parity, physical OK parity, filtered Hanzi tap correctness, and 7+ digit sequence behavior.
+11. Only then address remaining lower-risk cleanup: English cleanup and controller extraction.
 
 ## 9. Verification Notes
 
@@ -165,5 +175,7 @@ Steps 1-7 are coded; remaining work starts with device verification before lower
 - Success means all three rows stay mutually consistent, not merely that one row looks correct.
 - Verification must cover both touch chip selection and physical focus/OK selection.
 - After pinyin selection, the app text field must not receive final text until a Hanzi candidate is selected or Rime commits.
+- Long (7+ digit) sequences must preserve full-length pinyin lookup and matched-prefix behavior.
+- Regression cases from device testing: `2496 -> ai -> yo -> OK on 哎哟` must commit `哎哟`; `2496 -> ai -> Right` must move the visible Hanzi highlight immediately; Down in Hanzi focus must request the next page; `2496 -> ci` must not show unrelated unfiltered candidates and should show more matching `ci*` candidates when bulk results are available; fresh start `24` must include `ai` in the pinyin row.
 - Local static check: `git diff --check` passes.
 - Build check could not run in this environment because no Java runtime is installed.

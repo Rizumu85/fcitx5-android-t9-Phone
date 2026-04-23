@@ -18,13 +18,13 @@ class InputDeviceManager(private val onChange: (Boolean) -> Unit) {
     private var inputView: InputView? = null
     private var candidatesView: CandidatesView? = null
 
-    private val useT9KeyboardLayout by AppPrefs.getInstance().keyboard.useT9KeyboardLayout
+    private val t9InputModeEnabled by AppPrefs.getInstance().keyboard.useT9KeyboardLayout
 
     private fun setupInputViewEvents(isVirtual: Boolean) {
         val iv = inputView ?: return
         // Enable InputView interaction when using virtual keyboard
-        // OR when T9 keyboard layout is enabled for physical keyboard users.
-        val enableInputView = isVirtual || useT9KeyboardLayout
+        // OR when T9 input mode is enabled for physical keyboard users.
+        val enableInputView = isVirtual || t9InputModeEnabled
         iv.handleEvents = enableInputView
         iv.visibility = if (enableInputView) View.VISIBLE else View.GONE
     }
@@ -125,7 +125,7 @@ class InputDeviceManager(private val onChange: (Boolean) -> Unit) {
 
     fun evaluateOnViewClicked(service: FcitxInputMethodService) {
         if (!startedInputView) return
-        if (useT9KeyboardLayout) return
+        if (t9InputModeEnabled) return
         isVirtualKeyboard = when (candidatesViewMode) {
             FloatingCandidatesMode.SystemDefault -> service.superEvaluateInputViewShown()
             else -> true
@@ -134,7 +134,7 @@ class InputDeviceManager(private val onChange: (Boolean) -> Unit) {
 
     fun evaluateOnUpdateEditorToolType(toolType: Int, service: FcitxInputMethodService) {
         if (!startedInputView) return
-        if (useT9KeyboardLayout) return
+        if (t9InputModeEnabled) return
         isVirtualKeyboard = when (candidatesViewMode) {
             FloatingCandidatesMode.SystemDefault -> service.superEvaluateInputViewShown()
             FloatingCandidatesMode.InputDevice ->
