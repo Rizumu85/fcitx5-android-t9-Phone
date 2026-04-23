@@ -1187,11 +1187,22 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
         return FormattedText(arrayOf(display), intArrayOf(TextFormatFlag.NoFlag.flag), -1)
     }
 
-    /** Preedit as pinyin with apostrophes for first row; null if not T9 Chinese or empty. */
+    /** Preedit for the shared T9 display row; null if there is nothing to show. */
     fun getT9PreeditDisplay(rawComposition: String? = null): FormattedText? {
-        if (!useT9KeyboardLayout || currentT9Mode != T9InputMode.CHINESE) return null
-        val raw = rawComposition ?: t9CompositionTracker.getFullComposition()
-        return buildT9PreeditDisplay(raw)
+        if (!useT9KeyboardLayout) return null
+        return when (currentT9Mode) {
+            T9InputMode.CHINESE -> {
+                val raw = rawComposition ?: t9CompositionTracker.getFullComposition()
+                buildT9PreeditDisplay(raw)
+            }
+            T9InputMode.ENGLISH -> {
+                multiTapPendingChar?.let { pending ->
+                    val display = applyEnglishCase(pending).toString()
+                    FormattedText(arrayOf(display), intArrayOf(TextFormatFlag.NoFlag.flag), -1)
+                }
+            }
+            T9InputMode.NUMBER -> null
+        }
     }
 
     /** Replace current T9 segment with selected pinyin (backspace + type pinyin). */
