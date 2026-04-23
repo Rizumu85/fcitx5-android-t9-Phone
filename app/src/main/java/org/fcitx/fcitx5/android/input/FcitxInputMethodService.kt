@@ -777,17 +777,8 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
     }
 
     private fun clearChineseT9CompositionFromEditorTap() {
-        Timber.d(
-            "T9 tap-clear requested: enabled=%s mode=%s state=%s tracker=%s composing=%s",
-            useT9KeyboardLayout,
-            currentT9Mode,
-            getT9InputState(),
-            t9CompositionTracker.getFullComposition(),
-            composing
-        )
         if (!useT9KeyboardLayout || currentT9Mode != T9InputMode.CHINESE) return
         if (getT9InputState() != T9InputState.CHINESE_COMPOSING && t9CompositionTracker.isEmpty()) {
-            Timber.d("T9 tap-clear skipped: no active Chinese T9 composition")
             return
         }
         resetComposingState()
@@ -795,7 +786,6 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
         inputView?.clearTransientState()
         currentInputConnection?.finishComposingText()
         postFcitxJob {
-            Timber.d("T9 tap-clear: focusOutIn")
             focusOutIn()
         }
     }
@@ -1351,12 +1341,6 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
     @Suppress("DEPRECATION", "OVERRIDE_DEPRECATION")
     override fun onViewClicked(focusChanged: Boolean) {
         super.onViewClicked(focusChanged)
-        Timber.d(
-            "onViewClicked: focusChanged=%s tracker=%s composing=%s",
-            focusChanged,
-            t9CompositionTracker.getFullComposition(),
-            composing
-        )
         clearChineseT9CompositionFromEditorTap()
         inputDeviceMgr.evaluateOnViewClicked(this)
     }
@@ -1482,15 +1466,6 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
     ) {
         // onUpdateSelection can left behind when user types quickly enough, eg. long press backspace
         cursorUpdateIndex += 1
-        Timber.d(
-            "onUpdateSelection: old=[%s,%s] new=[%s,%s] tracker=%s composing=%s",
-            oldSelStart,
-            oldSelEnd,
-            newSelStart,
-            newSelEnd,
-            t9CompositionTracker.getFullComposition(),
-            composing
-        )
         handleCursorUpdate(newSelStart, newSelEnd, cursorUpdateIndex)
         inputView?.updateSelection(newSelStart, newSelEnd)
     }
@@ -1562,13 +1537,6 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
     }
 
     private fun handleCursorUpdate(newSelStart: Int, newSelEnd: Int, updateIndex: Int) {
-        Timber.d(
-            "handleCursorUpdate: new=[%s,%s] composing=%s tracker=%s",
-            newSelStart,
-            newSelEnd,
-            composing,
-            t9CompositionTracker.getFullComposition()
-        )
         if (selection.consume(newSelStart, newSelEnd)) {
             return // do nothing if prediction matches
         } else {
@@ -1581,7 +1549,6 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
         if (composing.isEmpty()) {
             postFcitxJob {
                 if (!isEmpty()) {
-                    Timber.d("handleCursorUpdate: reset with non-empty fcitx state")
                     clearT9CompositionState()
                     reset()
                 }
@@ -1604,11 +1571,6 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
                 }
             }
         } else {
-            Timber.d(
-                "handleCursorUpdate: focus out/in tracker=%s newCursor=%s",
-                t9CompositionTracker.getFullComposition(),
-                newSelStart
-            )
             resetComposingState()
             candidatesView?.clearTransientState()
             inputView?.clearTransientState()

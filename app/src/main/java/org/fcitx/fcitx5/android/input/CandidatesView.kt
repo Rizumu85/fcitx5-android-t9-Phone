@@ -47,7 +47,6 @@ import splitties.views.dsl.core.withTheme
 import splitties.views.dsl.core.wrapContent
 import splitties.views.padding
 import android.view.View.MeasureSpec
-import timber.log.Timber
 import kotlin.math.min
 import kotlin.math.roundToInt
 
@@ -220,21 +219,10 @@ class CandidatesView(
     override fun handleFcitxEvent(it: FcitxEvent<*>) {
         when (it) {
             is FcitxEvent.InputPanelEvent -> {
-                Timber.d(
-                    "CandidatesView InputPanelEvent: preedit=%s auxUp=%s auxDown=%s",
-                    it.data.preedit,
-                    it.data.auxUp,
-                    it.data.auxDown
-                )
                 inputPanel = it.data
                 updateUi()
             }
             is FcitxEvent.PagedCandidateEvent -> {
-                Timber.d(
-                    "CandidatesView PagedCandidateEvent: size=%s cursor=%s",
-                    it.data.candidates.size,
-                    it.data.cursorIndex
-                )
                 paged = it.data
                 updateUi()
             }
@@ -243,11 +231,6 @@ class CandidatesView(
     }
 
     fun clearTransientState() {
-        Timber.d(
-            "CandidatesView clearTransientState: preedit=%s paged=%s",
-            inputPanel.preedit,
-            paged.candidates.size
-        )
         inputPanel = FcitxEvent.InputPanelEvent.Data()
         paged = FcitxEvent.PagedCandidateEvent.Data.Empty
         preeditUi.update(inputPanel)
