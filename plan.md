@@ -278,7 +278,7 @@ Prefer to do these after Phases A-C pass manual verification. Steps 1-3 are alre
 1. ~~Remove six-digit truncation from `T9PinyinUtils.t9KeyToPinyin` and `matchedPrefixLength`.~~ (coded, needs device verification for long sequences)
 2. ~~Quarantine or remove stale `PinyinSelectionBarComponent.kt`.~~ (done: removed unused file)
 3. ~~Recheck `use_t9_keyboard_layout` local naming and semantic gates.~~ (done: no migration; strings and local feature-gate names clarified)
-4. Audit T9 Hanzi candidate budgeting consistency across raw pages, bulk pages, fallback-filtered pages, and engine-backed pages; current-page local paging plus shared English/emoji/Hanzi cost rules are coded, but the configured value (for example `10`) still needs device verification.
+4. ~~Audit T9 Hanzi candidate budgeting consistency across raw pages, bulk pages, fallback-filtered pages, and engine-backed pages; current-page local paging plus shared English/emoji/Hanzi cost rules are coded, but the configured value (for example `10`) still needs device verification.~~ (verified)
 5. Recheck English STAR and multi-tap display.
 6. Recheck number-mode long press and Chinese-mode STAR punctuation toggle.
 7. Consider extracting `T9InputController` only after behaviour is stable.

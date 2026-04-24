@@ -998,6 +998,23 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
         modeIndicatorHandler.postDelayed(modeIndicatorDismissRunnable, 600)
     }
 
+    private fun showEnglishCaseStateOrRefreshPending() {
+        val pendingChar = multiTapPendingChar
+        if (pendingChar != null) {
+            modeIndicatorHandler.removeCallbacks(modeIndicatorDismissRunnable)
+            modeIndicatorShowing = false
+            currentInputConnection?.setComposingText(applyEnglishCase(pendingChar).toString(), 1)
+            return
+        }
+        showModeIndicator(
+            when (t9EnglishCaseState) {
+                T9EnglishCaseState.OFF -> "abc"
+                T9EnglishCaseState.SHIFT_ONCE -> "Abc"
+                T9EnglishCaseState.CAPS -> "ABC"
+            }
+        )
+    }
+
 
     /**
      * Get current T9 input state based on composing text (only used in CHINESE mode)
@@ -1048,13 +1065,7 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
             T9EnglishCaseState.OFF -> T9EnglishCaseState.SHIFT_ONCE
             T9EnglishCaseState.SHIFT_ONCE, T9EnglishCaseState.CAPS -> T9EnglishCaseState.OFF
         }
-        showModeIndicator(
-            when (t9EnglishCaseState) {
-                T9EnglishCaseState.OFF -> "abc"
-                T9EnglishCaseState.SHIFT_ONCE -> "Abc"
-                T9EnglishCaseState.CAPS -> "ABC"
-            }
-        )
+        showEnglishCaseStateOrRefreshPending()
     }
 
     private fun handleEnglishStarLongPress() {
@@ -1062,13 +1073,7 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
             T9EnglishCaseState.OFF, T9EnglishCaseState.SHIFT_ONCE -> T9EnglishCaseState.CAPS
             T9EnglishCaseState.CAPS -> T9EnglishCaseState.OFF
         }
-        showModeIndicator(
-            when (t9EnglishCaseState) {
-                T9EnglishCaseState.OFF -> "abc"
-                T9EnglishCaseState.SHIFT_ONCE -> "Abc"
-                T9EnglishCaseState.CAPS -> "ABC"
-            }
-        )
+        showEnglishCaseStateOrRefreshPending()
     }
 
     /**
@@ -1142,6 +1147,8 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
         multiTapLastTime = currentTime
         multiTapPendingChar = letters[multiTapIndex]
 
+        modeIndicatorHandler.removeCallbacks(modeIndicatorDismissRunnable)
+        modeIndicatorShowing = false
         val displayChar = applyEnglishCase(multiTapPendingChar!!)
         currentInputConnection?.setComposingText(displayChar.toString(), 1)
 
