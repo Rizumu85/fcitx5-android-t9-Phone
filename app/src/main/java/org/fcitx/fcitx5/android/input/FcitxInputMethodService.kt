@@ -1188,8 +1188,22 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
         }
         
         val modeName = getCurrentT9ModeLabel()
-        showModeIndicator(modeName)
         onT9ModeChanged?.invoke(modeName)
+    }
+
+    private fun commitLiteralT9Star(chineseState: T9InputState) {
+        resetMultiTapState()
+        val resetChineseEngine =
+            currentT9Mode == T9InputMode.CHINESE && chineseState == T9InputState.CHINESE_COMPOSING
+        if (resetChineseEngine) {
+            clearTransientInputUiState()
+        }
+        commitText("*")
+        if (resetChineseEngine) {
+            postFcitxJob {
+                focusOutIn()
+            }
+        }
     }
 
     /**
@@ -1246,13 +1260,17 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
                         }
                     }
                     T9InputMode.CHINESE -> {
-                        if (chineseState == T9InputState.CHINESE_COMPOSING) {
-                            false // Pass through - Rime handles * in composing
-                        } else {
-                            false // Pass through for now
+                        if (event.repeatCount == 0) {
+                            commitLiteralT9Star(chineseState)
                         }
+                        true
                     }
-                    T9InputMode.NUMBER -> false // * passes through in number mode
+                    T9InputMode.NUMBER -> {
+                        if (event.repeatCount == 0) {
+                            commitLiteralT9Star(chineseState)
+                        }
+                        true
+                    }
                 }
             }
 
@@ -2009,7 +2027,7 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
                         digitLongPressFlags[keyCode] = false
                         true
                     }
-                    else -> false
+                    T9InputMode.CHINESE, T9InputMode.NUMBER -> true
                 }
             }
 

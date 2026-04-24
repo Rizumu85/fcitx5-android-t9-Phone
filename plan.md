@@ -279,8 +279,8 @@ Prefer to do these after Phases A-C pass manual verification. Steps 1-3 are alre
 2. ~~Quarantine or remove stale `PinyinSelectionBarComponent.kt`.~~ (done: removed unused file)
 3. ~~Recheck `use_t9_keyboard_layout` local naming and semantic gates.~~ (done: no migration; strings and local feature-gate names clarified)
 4. ~~Audit T9 Hanzi candidate budgeting consistency across raw pages, bulk pages, fallback-filtered pages, and engine-backed pages; current-page local paging plus shared English/emoji/Hanzi cost rules are coded, but the configured value (for example `10`) still needs device verification.~~ (verified)
-5. Recheck English STAR and multi-tap display.
-6. Recheck number-mode long press and Chinese-mode STAR punctuation toggle.
+5. ~~Recheck English STAR and multi-tap display.~~ (verified; pending-letter case refreshes display instead of leaving stale mode indicator)
+6. ~~Recheck number-mode long press and Chinese-mode STAR punctuation toggle.~~ (verified; Chinese/123 STAR now commits literal `*`, and T9 mode switching no longer writes composing mode text)
 7. Consider extracting `T9InputController` only after behaviour is stable.
 
 ## Manual Verification Checklist
