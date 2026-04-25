@@ -29,6 +29,7 @@ Rizum Guidelines are active for this project/thread until the user says otherwis
 - [x] Let DPAD arrows/OK control local punctuation candidates before generic pending-punctuation commit.
 - [x] Expand local punctuation pools and paginate them with the T9 candidate budget.
 - [x] Consume punctuation candidate navigation keys at page boundaries.
+- [x] Update README with user-visible T9 behavior changes.
 
 ## Previous Completed Work
 
