@@ -80,6 +80,15 @@ keeps the displayed pinyin composition aligned with consumed Hanzi segments.
 Helpers outside `update()` should use `service.isChineseT9InputModeActive()` for
 T9 state instead of relying on local variables scoped to `update()`.
 
+When no explicit pinyin filter has been selected, the top pinyin preview should
+prefer the currently highlighted Hanzi candidate's comment reading over the
+default digit-to-pinyin guess. Moving the Hanzi focus should refresh the preview
+row so ambiguous digit sequences show the selected candidate's reading.
+Because the same row also indicates how many T9 digit keys have been entered,
+candidate comment readings should be cropped by the current T9 key count before
+display. This keeps prefix matches intuitive: after one `2`, a highlighted `ai`
+candidate previews `a`, and a highlighted `ba` candidate previews `b`.
+
 ## T9 Candidate Refresh Design
 
 When a new bulk-filter request is needed, keep the last stable filtered page

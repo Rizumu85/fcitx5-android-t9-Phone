@@ -1724,17 +1724,20 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
         }
         val comment = paged.candidates.getOrNull(paged.cursorIndex)?.comment
             ?: paged.candidates.firstOrNull()?.comment.orEmpty()
+        val candidateReading = buildT9CandidatePreviewReading(normalizeT9CandidateComment(comment))
+            .takeIf { it.isNotEmpty() }
+            ?.let { formattedT9Text(it) }
         val topReading = if (t9CompositionModel.hasResolvedSegments) {
             // The user picked a pinyin prefix; the top row must reflect their selection,
             // not whatever Rime's first unfiltered candidate happens to read.
             buildT9CompositionModelDisplay()
-                ?: comment.takeIf { it.isNotEmpty() }?.let { formattedT9Text(it) }
+                ?: candidateReading
                 ?: getT9PreeditDisplay()
         } else {
-            getT9PreeditDisplay()
+            candidateReading
+                ?: getT9PreeditDisplay()
                 ?: getT9PreeditDisplay(t9CompositionModel.rawPreedit.takeIf { it.isNotEmpty() })
                 ?: getT9PreeditDisplay(inputPanel.preedit.toString().takeIf { it.isNotEmpty() })
-                ?: comment.takeIf { it.isNotEmpty() }?.let { formattedT9Text(it) }
         }
         return T9PresentationState(
             topReading = topReading,
@@ -1877,6 +1880,24 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
 
     private fun normalizeT9CandidateComment(comment: String): String =
         comment.replace('\'', ' ').trim().lowercase()
+
+    private fun buildT9CandidatePreviewReading(normalizedComment: String): String {
+        if (normalizedComment.isEmpty()) return ""
+        var remainingKeys = getT9CompositionKeyCount()
+        if (remainingKeys <= 0) return normalizedComment
+        val parts = mutableListOf<String>()
+        normalizedComment.split(' ')
+            .filter { it.isNotEmpty() }
+            .forEach { segment ->
+                if (remainingKeys <= 0) return@forEach
+                val takeCount = minOf(segment.length, remainingKeys)
+                if (takeCount > 0) {
+                    parts += segment.take(takeCount)
+                    remainingKeys -= takeCount
+                }
+            }
+        return parts.joinToString(" ")
+    }
 
     private fun resolvedSegmentsForT9FilterPrefix(prefix: String): List<T9ResolvedSegment>? {
         val resolved = t9CompositionModel.resolvedSegments

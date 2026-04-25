@@ -374,6 +374,8 @@ class CandidatesView(
                 if (t9ShownUsesPendingPunctuation) {
                     val originalIndex = t9ShownOriginalIndices.getOrNull(next) ?: next
                     service.previewPendingT9PunctuationCandidate(originalIndex)
+                } else {
+                    refreshT9Ui()
                 }
                 true
             }

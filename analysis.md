@@ -134,6 +134,22 @@ The examples `jiang`, `liang`, `kuan`, and `kuang` were symptoms of this
 broader incomplete-map design. A robust fix should complete the map against the
 Rime dictionary syllable set instead of adding only user-discovered examples.
 
+## Pinyin Preview Feedback
+
+The user reports that the top pinyin preview still does not track Hanzi
+candidate selection. For ambiguous digit sequences such as `2`, the default
+digit-to-pinyin display can stay on the first option (`a`) even when the
+highlighted Hanzi candidate has a different reading. Without an explicit pinyin
+filter, the top preview should prefer the highlighted candidate's pinyin comment
+so users can see which reading they are about to commit.
+
+Follow-up feedback clarifies that the top pinyin preview also communicates how
+many T9 digit keys have been entered. Candidate comments can contain the full
+reading for prefix matches, for example `ai` or `ba` after only pressing `2`.
+The preview should therefore follow the highlighted candidate's reading, but
+truncate that reading to the current composition key count: `ai` becomes `a`,
+and `ba` becomes `b` for a single entered key.
+
 ## README Understanding
 
 The app is a fork/customization of Fcitx5 for Android focused on physical
@@ -183,6 +199,10 @@ Chinese input, pinyin prediction/filtering, and `#` mode switching.
   a pending `1` punctuation choice to switch.
 - Pinyin filtering must not hide all useful Hanzi just because a longer pinyin
   map entry is missing.
+- Pinyin preview should follow the highlighted Hanzi candidate reading when no
+  explicit pinyin filter has been selected.
+- Candidate-based pinyin preview should be truncated to the number of current
+  T9 digit keys so the preview remains a key-count indicator.
 - T9 candidate refresh should avoid swapping to an empty intermediate page while
   async bulk filtering is pending.
 - T9 Hanzi candidates should honor the user-configured character budget even
