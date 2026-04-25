@@ -479,8 +479,13 @@ class KawaiiBarComponent : UniqueViewComponent<KawaiiBarComponent, FrameLayout>(
 
     fun clearTransientState() {
         horizontalCandidate.clearTransientState()
+        isInlineSuggestionPresent = false
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            idleUi.inlineSuggestionsBar.clear()
+        }
         barStateMachine.push(PreeditUpdated, PreeditEmpty to true)
         barStateMachine.push(CandidatesUpdated, CandidateEmpty to true)
+        evalIdleUiState()
     }
 
     override fun onWindowAttached(window: InputWindow) {

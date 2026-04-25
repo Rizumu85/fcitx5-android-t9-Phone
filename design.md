@@ -1,25 +1,92 @@
 # Design
 
-## Remote Build Removal
+## Project Goal
 
-Remove `.github/workflows/f22_build.yml` entirely. This is the narrowest way to disable the
-abandoned GitHub remote APK build without changing the Android project, local Gradle tasks,
-or upstream-style CI workflows.
+Provide a comfortable Android input method for physical T9-key phones, centered
+on Chinese T9 through Rime, English multi-tap, numeric entry, compact on-screen
+controls, and a readable themeable keyboard surface.
 
-## Implementation Choice
+## Current Task Design
 
-Use a file deletion rather than leaving a disabled workflow. A deleted workflow cannot be
-accidentally triggered from the GitHub Actions UI, and it avoids maintaining a known-broken
-remote build path.
+Create a repo-level `AGENTS.md` that merges Rizum planning/documentation rules
+with Karpathy-style simplicity, assumptions, and surgical implementation rules.
+The file should be concise enough for future agents to follow without rereading
+the full skill files.
+
+## T9 Punctuation Design
+
+Handle Chinese `1` punctuation locally when the user is not already composing
+Chinese text. Use a pending punctuation character, similar to English multi-tap,
+so repeated `1` cycles punctuation and timeout commits it. While a Chinese
+punctuation character is pending, `*` toggles the pending character between the
+Chinese and English punctuation sets.
+
+Keep `*` as a literal star in Chinese mode when there is no pending punctuation,
+preserving existing behavior outside the new `1` punctuation workflow.
+
+Clear transient inline suggestions when the local punctuation flow starts. This
+keeps Android autofill suggestions such as password-manager chips out of the
+punctuation interaction without turning inline suggestions off globally.
+
+## T9 Pinyin Design
+
+The current static T9 pinyin map is incomplete for longer syllables. The audit
+shows 71 Rime dictionary syllables that cannot appear in the pinyin candidate
+row. The next pinyin fix should complete the map against the Rime dictionary
+syllable set rather than adding only individually reported examples.
+
+Prefer a surgical completion of the existing map for now: merge missing strings
+into existing group keys where keys already exist, and add missing group keys
+where needed. This keeps UI behavior and ordering close to the current design
+while removing the known coverage gaps.
+
+After the map change, rerun the same static coverage comparison against the
+bundled Rime dictionary. Success means zero missing Rime syllables in the local
+T9 pinyin map.
+
+When a Hanzi candidate is selected without an explicit pinyin filter, update the
+local T9 model from the selected candidate's pinyin comment when possible. This
+keeps the displayed pinyin composition aligned with consumed Hanzi segments.
+Helpers outside `update()` should use `service.isChineseT9InputModeActive()` for
+T9 state instead of relying on local variables scoped to `update()`.
+
+## T9 Candidate Refresh Design
+
+When a new bulk-filter request is needed, keep the last stable filtered page
+visible while the async request is pending. Replace it only when the matching
+request returns. This avoids a transient empty candidate render while preserving
+the existing fallback path for the first request or when no previous page exists.
+
+T9 Hanzi rendering should prioritize the user's character budget over the raw
+Rime page size. Request a bulk candidate pool for both no-filter and
+prefix-filtered T9 states, then slice that pool with `T9CandidateBudget`. Keep
+the last stable bulk page visible while a replacement request is pending.
+
+Also ship Rime's default `menu/page_size` as 24 instead of 5, matching the app
+preference's upper bound. This improves the normal paged callback and reduces
+the chance that the first visible state is starved, but Android should still use
+the bulk pool as the authoritative T9 budget source.
+
+Reset the Hanzi candidate cursor from both the visible candidate-list signature
+and the T9 context signature. The context signature should cover the current
+preedit text and resolved pinyin filter prefixes so deletion and filter toggles
+do not temporarily reuse an old highlighted candidate index.
+
+## Theme Design
+
+Do not add themes speculatively. Theme/skin work should wait for the user's
+visual direction, then proceed in small testable steps.
 
 ## Non-Goals
 
-- No changes to `app/org.fcitx.fcitx5.android.yml`.
-- No changes to local Android Studio or Gradle build documentation.
-- No changes to `.github/workflows/pull_request.yml`, `nix.yml`, `fdroid.yml`, or `publish.yml`.
+- Do not redesign the T9 engine or Rime bridge.
+- Do not add user-configurable punctuation maps.
+- Do not remove Android inline suggestions globally.
+- Do not run full Android builds or device tests in this task.
 
 ## Previous Completed Design
 
-The T9 Hanzi candidate character budget remains an integer managed preference with default `10`
-and range `4..24`.
-The Rime plugin remains on inherited shared versioning.
+- The abandoned remote APK build workflow was deleted instead of disabled.
+- The T9 Hanzi candidate character budget remains an integer managed preference
+  with default `10` and range `4..24`.
+- The Rime plugin remains on inherited shared versioning.

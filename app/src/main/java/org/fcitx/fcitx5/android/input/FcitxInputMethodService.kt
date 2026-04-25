@@ -934,6 +934,17 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
     private var multiTapPendingChar: Char? = null
     private val MULTITAP_TIMEOUT = 1200L  // Increased from 500ms for easier typing
 
+    private enum class T9PunctuationSet {
+        CHINESE,
+        ENGLISH
+    }
+
+    private val t9ChinesePunctuation = listOf("，", "。", "？", "！", "、", "：", "；")
+    private val t9EnglishPunctuation = listOf(",", ".", "?", "!", "'", "\"", "-", "@", "/", ":")
+    private var t9PendingPunctuationSet = T9PunctuationSet.CHINESE
+    private var t9PendingPunctuationIndex = 0
+    private var t9PendingPunctuationText: String? = null
+
     /** T9 composition tracker for pinyin selection bar (digit sequence for current segment). */
     private val t9CompositionTracker = T9CompositionTracker()
     private var t9CompositionModel = T9CompositionModel()
@@ -975,6 +986,10 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
         if (multiTapPendingChar != null) {
             commitMultiTapChar()
         }
+    }
+
+    private val t9PunctuationTimeoutRunnable = Runnable {
+        commitPendingT9Punctuation()
     }
 
     // Handler for mode indicator
@@ -1076,6 +1091,68 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
         showEnglishCaseStateOrRefreshPending()
     }
 
+    private fun activeT9PunctuationList(): List<String> = when (t9PendingPunctuationSet) {
+        T9PunctuationSet.CHINESE -> t9ChinesePunctuation
+        T9PunctuationSet.ENGLISH -> t9EnglishPunctuation
+    }
+
+    private fun showPendingT9Punctuation() {
+        val punctuation = activeT9PunctuationList()[t9PendingPunctuationIndex]
+        t9PendingPunctuationText = punctuation
+        clearTransientInputUiState()
+        modeIndicatorHandler.removeCallbacks(modeIndicatorDismissRunnable)
+        modeIndicatorShowing = false
+        currentInputConnection?.setComposingText(punctuation, 1)
+        multiTapHandler.removeCallbacks(t9PunctuationTimeoutRunnable)
+        multiTapHandler.postDelayed(t9PunctuationTimeoutRunnable, MULTITAP_TIMEOUT)
+    }
+
+    private fun handleChinesePunctuationKey(): Boolean {
+        multiTapHandler.removeCallbacks(t9PunctuationTimeoutRunnable)
+        if (t9PendingPunctuationText == null) {
+            t9PendingPunctuationSet = T9PunctuationSet.CHINESE
+            t9PendingPunctuationIndex = 0
+        } else {
+            t9PendingPunctuationIndex =
+                (t9PendingPunctuationIndex + 1) % activeT9PunctuationList().size
+        }
+        showPendingT9Punctuation()
+        return true
+    }
+
+    private fun togglePendingT9PunctuationSet(): Boolean {
+        if (t9PendingPunctuationText == null) return false
+        t9PendingPunctuationSet = when (t9PendingPunctuationSet) {
+            T9PunctuationSet.CHINESE -> T9PunctuationSet.ENGLISH
+            T9PunctuationSet.ENGLISH -> T9PunctuationSet.CHINESE
+        }
+        t9PendingPunctuationIndex =
+            t9PendingPunctuationIndex.coerceIn(activeT9PunctuationList().indices)
+        showPendingT9Punctuation()
+        return true
+    }
+
+    private fun commitPendingT9Punctuation(): Boolean {
+        multiTapHandler.removeCallbacks(t9PunctuationTimeoutRunnable)
+        val punctuation = t9PendingPunctuationText ?: return false
+        t9PendingPunctuationText = null
+        t9PendingPunctuationIndex = 0
+        t9PendingPunctuationSet = T9PunctuationSet.CHINESE
+        currentInputConnection?.commitText(punctuation, 1)
+        return true
+    }
+
+    private fun cancelPendingT9Punctuation(): Boolean {
+        multiTapHandler.removeCallbacks(t9PunctuationTimeoutRunnable)
+        if (t9PendingPunctuationText == null) return false
+        currentInputConnection?.setComposingText("", 1)
+        currentInputConnection?.finishComposingText()
+        t9PendingPunctuationText = null
+        t9PendingPunctuationIndex = 0
+        t9PendingPunctuationSet = T9PunctuationSet.CHINESE
+        return true
+    }
+
     /**
      * Commit any pending multi-tap character
      * Returns true if there was a character to commit
@@ -1114,6 +1191,7 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
      * Reset all multi-tap state (used when switching modes)
      */
     private fun resetMultiTapState() {
+        commitPendingT9Punctuation()
         multiTapHandler.removeCallbacks(multiTapTimeoutRunnable)
         if (multiTapPendingChar != null) {
             currentInputConnection?.finishComposingText()
@@ -1260,10 +1338,14 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
                         }
                     }
                     T9InputMode.CHINESE -> {
-                        if (event.repeatCount == 0) {
+                        if (t9PendingPunctuationText != null) {
+                            true
+                        } else if (event.repeatCount == 0) {
                             commitLiteralT9Star(chineseState)
+                            true
+                        } else {
+                            true
                         }
-                        true
                     }
                     T9InputMode.NUMBER -> {
                         if (event.repeatCount == 0) {
@@ -1365,6 +1447,18 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
                     } else if (event.repeatCount == 1) {
                         digitLongPressFlags[keyCode] = true
                         currentInputConnection?.commitText("0", 1)
+                        return true
+                    }
+                    return true
+                } else if (keyCode == KeyEvent.KEYCODE_1) {
+                    // 1 key special: short press = local punctuation, long press = 1
+                    if (event.repeatCount == 0) {
+                        digitLongPressFlags[keyCode] = false
+                        return handleChinesePunctuationKey()
+                    } else if (event.repeatCount == 1) {
+                        digitLongPressFlags[keyCode] = true
+                        cancelPendingT9Punctuation()
+                        currentInputConnection?.commitText("1", 1)
                         return true
                     }
                     return true
@@ -1822,6 +1916,38 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
         return true
     }
 
+    fun consumeT9PinyinFromSelectedCandidate(candidate: FcitxEvent.Candidate): Boolean {
+        if (!t9InputModeEnabled || currentT9Mode != T9InputMode.CHINESE) return false
+        if (t9CompositionModel.hasResolvedSegments) return false
+        val rawDigits = t9CompositionTracker.getFullComposition().filter { it in '2'..'9' }
+        if (rawDigits.isEmpty()) return false
+        val commentSegments = normalizeT9CandidateComment(candidate.comment)
+            .split(' ')
+            .filter { it.isNotEmpty() }
+        if (commentSegments.isEmpty()) return false
+        var consumedDigits = ""
+        for (segment in commentSegments) {
+            val segmentDigits = T9PinyinUtils.pinyinToT9Keys(segment)
+            if (segmentDigits.isEmpty()) break
+            val nextConsumed = consumedDigits + segmentDigits
+            if (!rawDigits.startsWith(nextConsumed)) break
+            consumedDigits = nextConsumed
+        }
+        if (consumedDigits.isEmpty()) return false
+        val remainingDigits = rawDigits.drop(consumedDigits.length)
+        if (remainingDigits.isEmpty()) {
+            clearT9CompositionState()
+        } else {
+            t9CompositionTracker.replace(remainingDigits)
+            t9CompositionModel = T9CompositionModel(
+                unresolvedDigits = remainingDigits,
+                rawPreedit = remainingDigits
+            )
+        }
+        candidatesView?.refreshT9Ui()
+        return true
+    }
+
     fun commitHighlightedT9Pinyin(): Boolean {
         val pinyin = candidatesView?.getHighlightedT9Pinyin() ?: return false
         return commitT9PinyinSelection(pinyin)
@@ -1871,6 +1997,20 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
     }
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {
+        if (event.action == KeyEvent.ACTION_DOWN &&
+            t9PendingPunctuationText != null &&
+            keyCode !in setOf(
+                KeyEvent.KEYCODE_0,
+                KeyEvent.KEYCODE_1,
+                KeyEvent.KEYCODE_STAR,
+                KeyEvent.KEYCODE_POUND,
+                KeyEvent.KEYCODE_DEL,
+                KeyEvent.KEYCODE_BACK
+            )
+        ) {
+            commitPendingT9Punctuation()
+        }
+
         // Handle T9 special keys first
         if (handleT9SpecialKey(keyCode, event)) {
             return true
@@ -1885,6 +2025,13 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
             (keyCode == KeyEvent.KEYCODE_DEL || keyCode == KeyEvent.KEYCODE_BACK)
         ) {
             cancelMultiTapChar()
+            return true
+        }
+        if (event.action == KeyEvent.ACTION_DOWN &&
+            t9PendingPunctuationText != null &&
+            (keyCode == KeyEvent.KEYCODE_DEL || keyCode == KeyEvent.KEYCODE_BACK)
+        ) {
+            cancelPendingT9Punctuation()
             return true
         }
 
@@ -1951,7 +2098,7 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
                     if (!t9PoundLongPressTriggered) {
                         // If there was a pending char, just confirm it (no enter)
                         // If no pending char, perform enter/return (respects IME action: search, go, etc.)
-                        val hadPendingChar = commitMultiTapChar()
+                        val hadPendingChar = commitMultiTapChar() || commitPendingT9Punctuation()
                         if (!hadPendingChar) {
                             handleReturnKey()
                         }
@@ -1970,6 +2117,7 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
                 } else {
                     if (digitLongPressFlags[keyCode] != true) {
                         commitMultiTapChar()
+                        commitPendingT9Punctuation()
                         currentInputConnection?.commitText(" ", 1)
                     }
                     digitLongPressFlags[keyCode] = false
@@ -2006,18 +2154,28 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
                         // Multi-tap handled in KEY_DOWN, just consume KEY_UP
                         true
                     }
-                    else -> {
+                    T9InputMode.CHINESE -> {
+                        if (chineseState == T9InputState.CHINESE_COMPOSING) {
+                            false
+                        } else if (digitLongPressFlags[keyCode] == true) {
+                            digitLongPressFlags[keyCode] = false
+                            true
+                        } else {
+                            true
+                        }
+                    }
+                    T9InputMode.NUMBER -> {
                         if (digitLongPressFlags[keyCode] == true) {
                             digitLongPressFlags[keyCode] = false
                             true
                         } else {
-                            false // Short press passes to Rime for punctuation
+                            true
                         }
                     }
                 }
             }
 
-            // * key: short press = shift in English mode
+            // * key: short press = shift in English mode, punctuation-set switch while Chinese punctuation is pending
             KeyEvent.KEYCODE_STAR -> {
                 when (currentT9Mode) {
                     T9InputMode.ENGLISH -> {
@@ -2027,7 +2185,11 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
                         digitLongPressFlags[keyCode] = false
                         true
                     }
-                    T9InputMode.CHINESE, T9InputMode.NUMBER -> true
+                    T9InputMode.CHINESE -> {
+                        togglePendingT9PunctuationSet()
+                        true
+                    }
+                    T9InputMode.NUMBER -> true
                 }
             }
 
