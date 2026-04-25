@@ -939,8 +939,16 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
         ENGLISH
     }
 
-    private val t9ChinesePunctuation = listOf("，", "。", "？", "！", "、", "：", "；")
-    private val t9EnglishPunctuation = listOf(",", ".", "?", "!", "'", "\"", "-", "@", "/", ":")
+    private val t9ChinesePunctuation = listOf(
+        "，", "。", "？", "！", "、", "：", "；", "…", "——", "“", "”", "‘", "’",
+        "（", "）", "《", "》", "〈", "〉", "【", "】", "「", "」", "『", "』", "·",
+        "～", "￥", "％", "＋", "－", "×", "÷", "＝", "℃"
+    )
+    private val t9EnglishPunctuation = listOf(
+        ",", ".", "?", "!", "'", "\"", "-", "@", "/", ":", ";", "(", ")", "[", "]",
+        "{", "}", "<", ">", "_", "+", "=", "*", "&", "#", "%", "$", "~", "`", "\\",
+        "|", "^"
+    )
     private var t9PendingPunctuationSet = T9PunctuationSet.CHINESE
     private var t9PendingPunctuationIndex = 0
     private var t9PendingPunctuationText: String? = null
@@ -1102,9 +1110,39 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
         clearTransientInputUiState()
         modeIndicatorHandler.removeCallbacks(modeIndicatorDismissRunnable)
         modeIndicatorShowing = false
-        currentInputConnection?.setComposingText(punctuation, 1)
+        candidatesView?.refreshT9Ui()
         multiTapHandler.removeCallbacks(t9PunctuationTimeoutRunnable)
-        multiTapHandler.postDelayed(t9PunctuationTimeoutRunnable, MULTITAP_TIMEOUT)
+    }
+
+    fun getPendingT9PunctuationPaged(): FcitxEvent.PagedCandidateEvent.Data? {
+        if (t9PendingPunctuationText == null) return null
+        val punctuations = activeT9PunctuationList()
+        return FcitxEvent.PagedCandidateEvent.Data(
+            candidates = punctuations.map {
+                FcitxEvent.Candidate(label = "", text = it, comment = "")
+            }.toTypedArray(),
+            cursorIndex = t9PendingPunctuationIndex.coerceIn(punctuations.indices),
+            layoutHint = FcitxEvent.PagedCandidateEvent.LayoutHint.Horizontal,
+            hasPrev = false,
+            hasNext = false
+        )
+    }
+
+    fun commitPendingT9PunctuationCandidate(index: Int): Boolean {
+        val punctuations = activeT9PunctuationList()
+        if (t9PendingPunctuationText == null || index !in punctuations.indices) return false
+        t9PendingPunctuationIndex = index
+        t9PendingPunctuationText = punctuations[index]
+        return commitPendingT9Punctuation()
+    }
+
+    fun previewPendingT9PunctuationCandidate(index: Int): Boolean {
+        val punctuations = activeT9PunctuationList()
+        if (t9PendingPunctuationText == null || index !in punctuations.indices) return false
+        t9PendingPunctuationIndex = index
+        t9PendingPunctuationText = punctuations[index]
+        candidatesView?.refreshT9Ui()
+        return true
     }
 
     private fun handleChinesePunctuationKey(): Boolean {
@@ -1139,17 +1177,17 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
         t9PendingPunctuationIndex = 0
         t9PendingPunctuationSet = T9PunctuationSet.CHINESE
         currentInputConnection?.commitText(punctuation, 1)
+        candidatesView?.refreshT9Ui()
         return true
     }
 
     private fun cancelPendingT9Punctuation(): Boolean {
         multiTapHandler.removeCallbacks(t9PunctuationTimeoutRunnable)
         if (t9PendingPunctuationText == null) return false
-        currentInputConnection?.setComposingText("", 1)
-        currentInputConnection?.finishComposingText()
         t9PendingPunctuationText = null
         t9PendingPunctuationIndex = 0
         t9PendingPunctuationSet = T9PunctuationSet.CHINESE
+        candidatesView?.refreshT9Ui()
         return true
     }
 
@@ -1295,6 +1333,44 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
     private fun handleT9SpecialKey(keyCode: Int, event: KeyEvent): Boolean {
         if (!inputDeviceMgr.isInInputMode) return false
         if (event.action != KeyEvent.ACTION_DOWN) return false
+
+        if (currentT9Mode == T9InputMode.CHINESE && t9PendingPunctuationText != null) {
+            when (keyCode) {
+                KeyEvent.KEYCODE_1 -> {
+                    if (event.repeatCount == 0) {
+                        digitLongPressFlags[keyCode] = false
+                        return handleChinesePunctuationKey()
+                    } else if (event.repeatCount == 1) {
+                        digitLongPressFlags[keyCode] = true
+                        cancelPendingT9Punctuation()
+                        currentInputConnection?.commitText("1", 1)
+                        return true
+                    }
+                    return true
+                }
+                KeyEvent.KEYCODE_STAR -> return true
+                KeyEvent.KEYCODE_POUND -> {
+                    if (event.repeatCount == 0) {
+                        t9PoundLongPressTriggered = false
+                    } else if (event.repeatCount == 1) {
+                        t9PoundLongPressTriggered = true
+                        commitPendingT9Punctuation()
+                        switchToNextT9Mode()
+                    }
+                    return true
+                }
+                KeyEvent.KEYCODE_0 -> {
+                    if (event.repeatCount == 0) {
+                        digitLongPressFlags[keyCode] = false
+                    } else if (event.repeatCount == 1) {
+                        digitLongPressFlags[keyCode] = true
+                        cancelPendingT9Punctuation()
+                        currentInputConnection?.commitText("0", 1)
+                    }
+                    return true
+                }
+            }
+        }
 
         val chineseState = getT9InputState()
 
@@ -1640,6 +1716,12 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
         if (!t9InputModeEnabled || currentT9Mode != T9InputMode.CHINESE) {
             return T9PresentationState(null, emptyList())
         }
+        t9PendingPunctuationText?.let {
+            return T9PresentationState(
+                topReading = formattedT9Text(it),
+                pinyinOptions = emptyList()
+            )
+        }
         val comment = paged.candidates.getOrNull(paged.cursorIndex)?.comment
             ?: paged.candidates.firstOrNull()?.comment.orEmpty()
         val topReading = if (t9CompositionModel.hasResolvedSegments) {
@@ -1958,17 +2040,21 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
         if (event.action != KeyEvent.ACTION_DOWN) return false
         val topRowVisible = getT9PinyinCandidates().isNotEmpty()
         val focus = getT9CandidateFocus()
+        val pendingPunctuation = t9PendingPunctuationText != null
         val handled = when {
             keyCode in t9FocusUpKeyCodes && topRowVisible -> {
                 moveT9CandidateFocus(T9CandidateFocus.TOP)
                 true
+            }
+            keyCode in t9FocusUpKeyCodes && focus == T9CandidateFocus.BOTTOM -> {
+                candidatesView?.offsetT9HanziCandidatePage(-1) == true || pendingPunctuation
             }
             keyCode in t9FocusDownKeyCodes && focus == T9CandidateFocus.TOP -> {
                 moveT9CandidateFocus(T9CandidateFocus.BOTTOM)
                 true
             }
             keyCode in t9FocusDownKeyCodes && focus == T9CandidateFocus.BOTTOM -> {
-                candidatesView?.offsetT9HanziCandidatePage(1) == true
+                candidatesView?.offsetT9HanziCandidatePage(1) == true || pendingPunctuation
             }
             keyCode in t9FocusLeftKeyCodes && focus == T9CandidateFocus.TOP -> {
                 candidatesView?.moveHighlightedT9Pinyin(-1) == true
@@ -1977,16 +2063,16 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
                 candidatesView?.moveHighlightedT9Pinyin(1) == true
             }
             keyCode in t9FocusLeftKeyCodes && focus == T9CandidateFocus.BOTTOM -> {
-                candidatesView?.moveHighlightedT9HanziCandidate(-1) == true
+                candidatesView?.moveHighlightedT9HanziCandidate(-1) == true || pendingPunctuation
             }
             keyCode in t9FocusRightKeyCodes && focus == T9CandidateFocus.BOTTOM -> {
-                candidatesView?.moveHighlightedT9HanziCandidate(1) == true
+                candidatesView?.moveHighlightedT9HanziCandidate(1) == true || pendingPunctuation
             }
             keyCode in t9FocusOkKeyCodes && focus == T9CandidateFocus.TOP -> {
                 commitHighlightedT9Pinyin()
             }
             keyCode in t9FocusOkKeyCodes && focus == T9CandidateFocus.BOTTOM -> {
-                candidatesView?.commitHighlightedT9HanziCandidate() == true
+                candidatesView?.commitHighlightedT9HanziCandidate() == true || pendingPunctuation
             }
             else -> false
         }
@@ -2006,7 +2092,12 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
                 KeyEvent.KEYCODE_POUND,
                 KeyEvent.KEYCODE_DEL,
                 KeyEvent.KEYCODE_BACK
-            )
+            ) &&
+            keyCode !in t9FocusUpKeyCodes &&
+            keyCode !in t9FocusDownKeyCodes &&
+            keyCode !in t9FocusLeftKeyCodes &&
+            keyCode !in t9FocusRightKeyCodes &&
+            keyCode !in t9FocusOkKeyCodes
         ) {
             commitPendingT9Punctuation()
         }
@@ -2092,7 +2183,13 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
         return when (keyCode) {
             // # key: short press = confirm pending char OR enter (if no pending)
             KeyEvent.KEYCODE_POUND -> {
-                if (currentT9Mode == T9InputMode.CHINESE && chineseState == T9InputState.CHINESE_COMPOSING) {
+                if (currentT9Mode == T9InputMode.CHINESE && t9PendingPunctuationText != null) {
+                    if (!t9PoundLongPressTriggered) {
+                        commitPendingT9Punctuation()
+                    }
+                    t9PoundLongPressTriggered = false
+                    true
+                } else if (currentT9Mode == T9InputMode.CHINESE && chineseState == T9InputState.CHINESE_COMPOSING) {
                     false
                 } else {
                     if (!t9PoundLongPressTriggered) {
@@ -2110,7 +2207,14 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
 
             // 0 key: short press = space (+ commit pending multi-tap char)
             KeyEvent.KEYCODE_0 -> {
-                if (currentT9Mode == T9InputMode.CHINESE && chineseState == T9InputState.CHINESE_COMPOSING) {
+                if (currentT9Mode == T9InputMode.CHINESE && t9PendingPunctuationText != null) {
+                    if (digitLongPressFlags[keyCode] != true) {
+                        commitPendingT9Punctuation()
+                        currentInputConnection?.commitText(" ", 1)
+                    }
+                    digitLongPressFlags[keyCode] = false
+                    true
+                } else if (currentT9Mode == T9InputMode.CHINESE && chineseState == T9InputState.CHINESE_COMPOSING) {
                     false
                 } else if (currentT9Mode == T9InputMode.NUMBER) {
                     true // Already handled in KEY_DOWN
@@ -2155,7 +2259,9 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
                         true
                     }
                     T9InputMode.CHINESE -> {
-                        if (chineseState == T9InputState.CHINESE_COMPOSING) {
+                        if (t9PendingPunctuationText != null) {
+                            true
+                        } else if (chineseState == T9InputState.CHINESE_COMPOSING) {
                             false
                         } else if (digitLongPressFlags[keyCode] == true) {
                             digitLongPressFlags[keyCode] = false

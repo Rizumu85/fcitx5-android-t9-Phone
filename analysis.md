@@ -56,6 +56,47 @@ signature does not reset `t9HanziCursorIndex`, even though the T9 input/filter
 context changed. The cursor reset key needs to include the T9 context
 (`preedit`/resolved prefixes), not only the visible candidate list.
 
+## T9 Punctuation Candidate Feedback
+
+The local Chinese `1` punctuation flow fixed the external `1Password` inline
+suggestion path by not sending a bare `1` through the normal editor/Rime route.
+However, it also removed the candidate-window style punctuation choices the user
+expected from the previous Chinese input behavior. The fix should keep `1`
+local, but expose the active punctuation set as a local T9 candidate page so the
+existing Hanzi candidate UI still appears.
+
+The first local candidate-page attempt still auto-committed the first
+punctuation because it reused the multi-tap timeout behavior, and key-up could
+also see the punctuation composing text as Chinese composition. A local
+candidate page should behave like a candidate window: stay pending until explicit
+selection/confirmation or until another normal input commits it.
+
+The follow-up test still showed auto-commit on repeated `1` and `*` because the
+key-down path also computed Chinese composition from the local punctuation
+preview before checking pending punctuation. Pending punctuation must be handled
+before regular Chinese composition checks on both key-down and key-up.
+
+The next desired behavior is closer to normal Hanzi selection: preview the
+focused symbol in the input method's top preedit row, do not use the pinyin
+filter row, and show symbols in the Hanzi candidate row. This means local
+punctuation preview should not use `InputConnection.setComposingText()` at all,
+because editor-side composition can be committed by system/Rime transitions.
+
+DPAD navigation was still ineffective because the generic pending-punctuation
+"commit before unrelated input" guard ran before candidate focus navigation and
+did not exclude DPAD arrows/OK. Candidate navigation keys must be allowed through
+to `handleT9CandidateFocusNavigation()` while punctuation is pending.
+
+The user wants a larger punctuation pool split across multiple candidate pages,
+with each page sized by the same T9 candidate budget used for Hanzi candidates.
+The service should expose the full local punctuation pool, while `CandidatesView`
+should paginate that pool locally with `T9CandidateBudget`.
+
+At punctuation page boundaries, DPAD Up on the first page or Down on the last
+page can fall through to the editor and move the text cursor. While local
+punctuation is pending, candidate-control keys should be consumed even when they
+cannot move focus or change pages.
+
 ## Reported T9 Issues
 
 - Chinese `1` punctuation can surface a `1Password` suggestion.
@@ -149,6 +190,16 @@ Chinese input, pinyin prediction/filtering, and `#` mode switching.
 - T9 Hanzi focus should reset to the first candidate whenever the T9
   input/filter context changes, even if a pending request is still displaying
   the previous stable candidate page.
+- Chinese `1` punctuation should show a local candidate page for the current
+  punctuation set instead of hiding the candidate window.
+- Local punctuation preview should live in the input method preedit row, not in
+  editor composing text.
+- DPAD arrows/OK should navigate or commit the local punctuation candidate page
+  instead of triggering the generic pending-punctuation commit guard.
+- Local punctuation candidates should support multiple pages using the
+  user-configured T9 candidate budget.
+- Local punctuation candidate navigation should consume DPAD keys at page/focus
+  boundaries so the editor cursor does not move.
 - Theme work should be split into small user-tested steps instead of adding
   finished themes speculatively.
 - Clearing transient input state should hide inline suggestions without disabling

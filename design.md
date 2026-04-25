@@ -28,6 +28,36 @@ Clear transient inline suggestions when the local punctuation flow starts. This
 keeps Android autofill suggestions such as password-manager chips out of the
 punctuation interaction without turning inline suggestions off globally.
 
+Represent pending T9 punctuation as a local candidate page in `CandidatesView`.
+The candidate page should use the active Chinese or English punctuation list,
+highlight the current multi-tap punctuation index, and commit the selected
+punctuation through the service without calling Rime candidate selection.
+Moving the Hanzi focus across this local page should preview the focused
+punctuation in the input method's top preedit row so later confirmation commits
+the visible choice.
+Do not auto-commit local Chinese punctuation on the multi-tap timeout while the
+candidate page is visible; consume the matching key-up locally so the composing
+punctuation is not mistaken for regular Chinese composition. Pending punctuation
+is a higher-priority transient state than Chinese composition for `1`, `*`, `0`,
+and `#` handling.
+
+Do not use editor-side composing text for local punctuation preview. While
+punctuation is pending, `getT9PresentationState()` should return the focused
+symbol as `topReading` and an empty pinyin option list.
+
+Treat DPAD arrows and OK as candidate-control keys while local punctuation is
+pending. They should bypass the generic "commit pending punctuation before other
+input" guard and be handled by normal candidate focus navigation.
+
+Keep the full Chinese/English punctuation pools in the service, but paginate
+them in `CandidatesView` with the same `T9CandidateBudget` logic as Hanzi
+candidates. Map shown symbol indices back to their global punctuation indices so
+preview and commit work correctly across pages.
+
+When local punctuation is pending, consume DPAD arrows and OK even if the
+candidate page cannot move further. Boundary navigation should be a no-op inside
+the input method, not a cursor movement in the target editor.
+
 ## T9 Pinyin Design
 
 The current static T9 pinyin map is incomplete for longer syllables. The audit

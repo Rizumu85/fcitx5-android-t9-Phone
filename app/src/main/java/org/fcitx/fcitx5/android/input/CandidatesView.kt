@@ -154,6 +154,9 @@ class CandidatesView(
     private var t9ShownOriginalIndices = intArrayOf()
     private var t9ShownUsesBulkSelection = false
     private var t9ShownMatchedPrefix: String? = null
+    private var t9ShownUsesPendingPunctuation = false
+    private var t9PendingPunctuationAllCandidates: List<IndexedValue<FcitxEvent.Candidate>> = emptyList()
+    private var t9PendingPunctuationPageIndex = 0
     private var t9BulkFilterRequestSignature = ""
     private var t9BulkFilterPending = false
     private var t9BulkFilteredPaged: FcitxEvent.PagedCandidateEvent.Data? = null
@@ -368,6 +371,10 @@ class CandidatesView(
                 val updated = shown.copy(cursorIndex = next)
                 t9ShownPaged = updated
                 candidatesUi.update(updated, orientation)
+                if (t9ShownUsesPendingPunctuation) {
+                    val originalIndex = t9ShownOriginalIndices.getOrNull(next) ?: next
+                    service.previewPendingT9PunctuationCandidate(originalIndex)
+                }
                 true
             }
             next >= shown.candidates.size && shown.hasNext -> {
@@ -381,6 +388,9 @@ class CandidatesView(
     }
 
     fun offsetT9HanziCandidatePage(delta: Int): Boolean {
+        if (t9ShownUsesPendingPunctuation && t9PendingPunctuationAllCandidates.isNotEmpty()) {
+            if (offsetT9PendingPunctuationCandidatePage(delta)) return true
+        }
         if (t9ShownUsesBulkSelection && t9BulkFilteredAllCandidates.isNotEmpty()) {
             if (offsetT9BulkFilteredCandidatePage(delta)) return true
         }
@@ -401,9 +411,13 @@ class CandidatesView(
         return selectT9ShownHanziCandidate(shownIndex)
     }
 
-    private fun evaluateVisibility(topReading: FormattedText?, pinyinRowVisible: Boolean): Boolean {
+    private fun evaluateVisibility(
+        topReading: FormattedText?,
+        pinyinRowVisible: Boolean,
+        hasVisibleCandidates: Boolean
+    ): Boolean {
         return inputPanel.preedit.isNotEmpty() ||
-                paged.candidates.isNotEmpty() ||
+                hasVisibleCandidates ||
                 inputPanel.auxUp.isNotEmpty() ||
                 inputPanel.auxDown.isNotEmpty() ||
                 topReading?.isNotEmpty() == true ||
@@ -426,13 +440,30 @@ class CandidatesView(
         } else {
             emptyList()
         }
-        requestT9BulkFilteredCandidatesIfNeeded(t9InputModeEnabled, t9FilterPrefixes)
+        val pendingPunctuationPaged = if (t9InputModeEnabled) {
+            service.getPendingT9PunctuationPaged()
+        } else {
+            null
+        }
+        val pendingPunctuationBudgetedPaged = pendingPunctuationPaged?.let {
+            buildT9PendingPunctuationPaged(it)
+        }
+        if (pendingPunctuationPaged == null) {
+            requestT9BulkFilteredCandidatesIfNeeded(t9InputModeEnabled, t9FilterPrefixes)
+        } else {
+            resetT9BulkFilterState()
+        }
         val filteredPaged = if (t9InputModeEnabled) {
             filterPagedByT9PinyinPrefixes(paged, t9FilterPrefixes)
         } else {
             paged to null
         }
-        val localBudgetedPaged = if (t9InputModeEnabled && t9FilterPrefixes.isEmpty() && t9BulkFilteredPaged == null) {
+        val localBudgetedPaged = if (
+            pendingPunctuationPaged == null &&
+            t9InputModeEnabled &&
+            t9FilterPrefixes.isEmpty() &&
+            t9BulkFilteredPaged == null
+        ) {
             buildLocalBudgetedPagedFromCurrentPage(paged)
         } else {
             resetT9LocalBudgetState()
@@ -442,25 +473,33 @@ class CandidatesView(
         val usePendingBulkDisplay = t9InputModeEnabled && t9BulkFilteredPaged != null && t9BulkFilterPending
         val useLocalBudget = !useBulkFiltered && !usePendingBulkDisplay && localBudgetedPaged != null
         val candidateSource = when {
+            pendingPunctuationBudgetedPaged != null -> pendingPunctuationBudgetedPaged
             useBulkFiltered || usePendingBulkDisplay -> requireNotNull(t9BulkFilteredPaged)
             localBudgetedPaged != null -> localBudgetedPaged
             else -> filteredPaged.first
         }
         val cursorContextSignature = buildT9CursorContextSignature(t9FilterPrefixes)
-        val effectivePaged = if (t9InputModeEnabled) {
+        val effectivePaged = if (pendingPunctuationBudgetedPaged != null) {
+            pendingPunctuationBudgetedPaged
+        } else if (t9InputModeEnabled) {
             applyT9HanziCursor(candidateSource, cursorContextSignature)
         } else {
             paged
         }
         t9ShownPaged = effectivePaged
-        t9ShownUsesBulkSelection = useBulkFiltered
-        t9ShownUsesLocalBudget = useLocalBudget
-        t9ShownMatchedPrefix = if (useBulkFiltered) {
+        t9ShownUsesPendingPunctuation = pendingPunctuationPaged != null
+        t9ShownUsesBulkSelection = pendingPunctuationPaged == null && useBulkFiltered
+        t9ShownUsesLocalBudget = pendingPunctuationPaged == null && useLocalBudget
+        t9ShownMatchedPrefix = if (pendingPunctuationPaged != null) {
+            null
+        } else if (useBulkFiltered) {
             t9BulkFilteredMatchedPrefix
         } else {
             filteredPaged.second
         }
-        t9ShownOriginalIndices = if (useBulkFiltered) {
+        t9ShownOriginalIndices = if (pendingPunctuationPaged != null) {
+            buildOriginalIndicesForPendingPunctuation(effectivePaged)
+        } else if (useBulkFiltered) {
             t9BulkFilteredOriginalIndices
         } else if (usePendingBulkDisplay) {
             IntArray(effectivePaged.candidates.size) { -1 }
@@ -483,7 +522,12 @@ class CandidatesView(
         syncPinyinRowWidthToCandidates()
         updatePinyinBar(t9State?.pinyinOptions ?: emptyList(), t9InputModeEnabled)
         updateT9FocusIndicator()
-        if (evaluateVisibility(t9State?.topReading, t9State?.pinyinRowVisible == true)) {
+        if (evaluateVisibility(
+                t9State?.topReading,
+                t9State?.pinyinRowVisible == true,
+                effectivePaged.candidates.isNotEmpty()
+            )
+        ) {
             visibility = VISIBLE
         } else {
             // RecyclerView won't update its items when ancestor view is GONE
@@ -550,6 +594,10 @@ class CandidatesView(
 
     private fun selectT9ShownHanziCandidate(shownIndex: Int): Boolean {
         val shown = t9ShownPaged ?: return false
+        if (t9ShownUsesPendingPunctuation) {
+            val originalIndex = t9ShownOriginalIndices.getOrNull(shownIndex) ?: shownIndex
+            return service.commitPendingT9PunctuationCandidate(originalIndex)
+        }
         val originalIndex = originalCandidateIndexForShown(shown, shownIndex) ?: return false
         if (originalIndex < 0) return false
         val selectedCandidate = shown.candidates.getOrNull(shownIndex) ?: return false
@@ -637,6 +685,24 @@ class CandidatesView(
         return true
     }
 
+    private fun offsetT9PendingPunctuationCandidatePage(delta: Int): Boolean {
+        val pages = buildT9CandidateBudgetPages(t9PendingPunctuationAllCandidates)
+        val nextPageIndex = t9PendingPunctuationPageIndex + delta
+        if (nextPageIndex !in pages.indices) return false
+        t9PendingPunctuationPageIndex = nextPageIndex
+        applyT9PendingPunctuationPage(T9CandidateBudgetPage(
+            candidates = pages[nextPageIndex],
+            hasPrev = nextPageIndex > 0,
+            hasNext = nextPageIndex < pages.lastIndex
+        ))
+        t9ShownPaged?.candidates?.indices?.firstOrNull()?.let { shownIndex ->
+            val originalIndex = t9ShownOriginalIndices.getOrNull(shownIndex) ?: return@let
+            service.previewPendingT9PunctuationCandidate(originalIndex)
+        }
+        refreshT9Ui()
+        return true
+    }
+
     private fun matchT9Candidates(
         candidates: List<IndexedValue<FcitxEvent.Candidate>>,
         prefixes: List<String>
@@ -688,6 +754,59 @@ class CandidatesView(
             layoutHint = data.layoutHint,
             hasPrev = data.hasPrev || page.hasPrev,
             hasNext = data.hasNext || page.hasNext
+        )
+    }
+
+    private fun buildT9PendingPunctuationPaged(
+        data: FcitxEvent.PagedCandidateEvent.Data
+    ): FcitxEvent.PagedCandidateEvent.Data {
+        t9PendingPunctuationAllCandidates = data.candidates.withIndex().toList()
+        val pages = buildT9CandidateBudgetPages(t9PendingPunctuationAllCandidates)
+        if (pages.isEmpty()) return data
+        val selectedIndex = data.cursorIndex.coerceIn(data.candidates.indices)
+        t9PendingPunctuationPageIndex = pages.indexOfFirst { page ->
+            page.any { it.index == selectedIndex }
+        }.takeIf { it >= 0 } ?: t9PendingPunctuationPageIndex.coerceIn(pages.indices)
+        val page = T9CandidateBudgetPage(
+            candidates = pages[t9PendingPunctuationPageIndex],
+            hasPrev = t9PendingPunctuationPageIndex > 0,
+            hasNext = t9PendingPunctuationPageIndex < pages.lastIndex
+        )
+        return buildT9PendingPunctuationPagedFromPage(page, selectedIndex)
+    }
+
+    private fun buildOriginalIndicesForPendingPunctuation(
+        shown: FcitxEvent.PagedCandidateEvent.Data
+    ): IntArray {
+        if (shown.candidates.isEmpty()) return intArrayOf()
+        val page = buildT9CandidateBudgetPages(t9PendingPunctuationAllCandidates)
+            .getOrNull(t9PendingPunctuationPageIndex)
+            ?: return IntArray(shown.candidates.size) { -1 }
+        return page.map { it.index }.toIntArray()
+    }
+
+    private fun applyT9PendingPunctuationPage(page: T9CandidateBudgetPage) {
+        t9ShownOriginalIndices = page.candidates.map { it.index }.toIntArray()
+        t9ShownPaged = buildT9PendingPunctuationPagedFromPage(
+            page = page,
+            selectedIndex = t9ShownOriginalIndices.firstOrNull() ?: -1
+        )
+    }
+
+    private fun buildT9PendingPunctuationPagedFromPage(
+        page: T9CandidateBudgetPage,
+        selectedIndex: Int
+    ): FcitxEvent.PagedCandidateEvent.Data {
+        val localCursor = page.candidates.indexOfFirst { it.index == selectedIndex }
+            .takeIf { it >= 0 }
+            ?: page.candidates.indices.firstOrNull()
+            ?: -1
+        return FcitxEvent.PagedCandidateEvent.Data(
+            candidates = page.candidates.map { it.value }.toTypedArray(),
+            cursorIndex = localCursor,
+            layoutHint = paged.layoutHint,
+            hasPrev = page.hasPrev,
+            hasNext = page.hasNext
         )
     }
 
@@ -796,6 +915,7 @@ class CandidatesView(
         resetT9LocalBudgetState()
         t9ShownOriginalIndices = intArrayOf()
         t9ShownUsesBulkSelection = false
+        t9ShownUsesPendingPunctuation = false
         t9ShownMatchedPrefix = null
     }
 

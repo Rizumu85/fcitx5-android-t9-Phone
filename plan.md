@@ -22,6 +22,13 @@ Rizum Guidelines are active for this project/thread until the user says otherwis
 - [x] Restore T9 candidate display so both filtered and unfiltered Hanzi rows honor the user-configured character budget.
 - [x] Raise Rime `menu/page_size` to the maximum T9 Hanzi character budget as a supporting first-page improvement.
 - [x] Reset Hanzi focus on T9 input/filter context changes so the focus bubble does not briefly jump to a stale candidate index.
+- [x] Show local punctuation candidates for Chinese `1` so the candidate window remains visible without reintroducing `1Password`.
+- [x] Keep local punctuation candidates pending instead of auto-committing the first symbol.
+- [x] Prioritize pending punctuation before Chinese composition checks for repeated `1` and `*`.
+- [x] Move local punctuation preview from editor composing text to the input method preedit row.
+- [x] Let DPAD arrows/OK control local punctuation candidates before generic pending-punctuation commit.
+- [x] Expand local punctuation pools and paginate them with the T9 candidate budget.
+- [x] Consume punctuation candidate navigation keys at page boundaries.
 
 ## Previous Completed Work
 
