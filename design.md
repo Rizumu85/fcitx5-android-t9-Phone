@@ -91,6 +91,11 @@ selection reopen, pending punctuation, or pending English multi-tap character,
 delete directly through `InputConnection`. This keeps search fields from
 requiring a second press because an idle BackSpace key event was first consumed
 inside the Fcitx/editor key-event path.
+For that direct-delete path, prefer `InputConnection.getExtractedText()` as the
+source of text/cursor truth before falling back to `getTextBeforeCursor(1)`.
+Search suggestion UIs may refresh surrounding-text queries around the first
+Backspace press; if extracted text reports a cursor after at least one
+character, issue `deleteSurroundingText*` directly anyway.
 
 For Chinese/English/numeric mode switching, introduce a clear animated
 confirmation that is separate from text composition and candidate commit paths.

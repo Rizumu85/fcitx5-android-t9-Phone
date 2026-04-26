@@ -118,6 +118,11 @@ before any digit reaches Rime.
   is no composing text or local T9 pending state, physical Backspace should
   delete directly through `InputConnection` instead of depending on the Fcitx
   BackSpace round trip.
+- Follow-up bug report: physical Backspace still needs two presses in search
+  fields, especially when browser/search suggestions refresh below the field.
+  The direct-delete path still trusts the local cursor tracker and
+  `getTextBeforeCursor(1)` before deleting. Search UIs can temporarily report
+  those as empty while `ExtractedText` still contains the real text and cursor.
 - Feature correction: numeric shortcut labels and long-press shortcut selection
   should apply to the Hanzi candidate row, not the pinyin filter row. The pinyin
   filter row should remain text-only.

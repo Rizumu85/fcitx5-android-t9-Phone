@@ -80,6 +80,8 @@ Rizum Guidelines are active for this project/thread until the user says otherwis
 - [x] Run a narrow static diff check for the search-field backspace fix.
 - [x] Route idle physical Backspace directly through `InputConnection` instead of the Fcitx key-event round trip.
 - [x] Run a narrow static diff check for the direct physical Backspace path.
+- [x] Make idle physical Backspace direct-delete use `ExtractedText` cursor/text before surrounding-text fallback.
+- [x] Run a narrow static diff check for the extracted-text direct-delete refinement.
 - [x] Add small numeric shortcut labels to the T9 pinyin row and local punctuation list.
 - [x] Handle long-press number selection for focused pinyin options and pending punctuation options.
 - [x] Run a narrow static diff check for the numeric shortcut change.

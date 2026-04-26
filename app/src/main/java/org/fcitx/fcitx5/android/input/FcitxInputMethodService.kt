@@ -572,6 +572,33 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
             ic.commitText("", 1)
             return true
         }
+        val extracted = ic.getExtractedText(ExtractedTextRequest(), 0)
+        val extractedText = extracted?.text
+        val extractedStart = extracted?.selectionStart ?: -1
+        val extractedEnd = extracted?.selectionEnd ?: -1
+        if (extractedText != null && extractedStart >= 0 && extractedEnd >= 0) {
+            val start = minOf(extractedStart, extractedEnd)
+            val end = maxOf(extractedStart, extractedEnd)
+            if (start != end) {
+                selection.predict(start)
+                ic.commitText("", 1)
+                return true
+            }
+            if (start > 0) {
+                if (lastSelection.start > 0) {
+                    selection.predictOffset(-1)
+                } else {
+                    selection.predict(start - 1)
+                }
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                    ic.deleteSurroundingTextInCodePoints(1, 0)
+                } else {
+                    ic.deleteSurroundingText(1, 0)
+                }
+                return true
+            }
+            if (extractedText.isNotEmpty()) return false
+        }
         if (lastSelection.start <= 0 &&
             ic.getTextBeforeCursor(1, 0).isNullOrEmpty()
         ) {
