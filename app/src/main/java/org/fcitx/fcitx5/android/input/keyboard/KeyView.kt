@@ -231,7 +231,7 @@ abstract class KeyView(ctx: Context, val theme: Theme, val def: KeyDef.Appearanc
                 )
             }
             R.id.button_return -> {
-                val drawableSize = min(min(w, h), dp(35))
+                val drawableSize = min(min(w, h), dp(30))
                 val hInset = (w - drawableSize) / 2
                 val vInset = (h - drawableSize) / 2
                 appearanceView.background = insetOvalDrawable(
@@ -248,6 +248,13 @@ abstract class KeyView(ctx: Context, val theme: Theme, val def: KeyDef.Appearanc
     }
 }
 
+private fun isDarkColor(@ColorInt color: Int): Boolean {
+    val red = Color.red(color)
+    val green = Color.green(color)
+    val blue = Color.blue(color)
+    return red * 299 + green * 587 + blue * 114 < 128000
+}
+
 @SuppressLint("ViewConstructor")
 open class TextKeyView(ctx: Context, theme: Theme, def: KeyDef.Appearance.Text) :
     KeyView(ctx, theme, def) {
@@ -261,10 +268,14 @@ open class TextKeyView(ctx: Context, theme: Theme, def: KeyDef.Appearance.Text) 
         // keep original typeface, apply textStyle only
         setTypeface(typeface, def.textStyle)
         setTextColor(
-            when (def.variant) {
-                Variant.Normal -> theme.keyTextColor
-                Variant.AltForeground, Variant.Alternative -> theme.altKeyTextColor
-                Variant.Accent -> theme.accentKeyTextColor
+            if (def.viewId == R.id.button_space) {
+                if (isDarkColor(theme.spaceBarColor)) Color.WHITE else Color.BLACK
+            } else {
+                when (def.variant) {
+                    Variant.Normal -> theme.keyTextColor
+                    Variant.AltForeground, Variant.Alternative -> theme.altKeyTextColor
+                    Variant.Accent -> theme.accentKeyTextColor
+                }
             }
         )
     }

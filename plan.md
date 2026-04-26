@@ -6,6 +6,33 @@ Rizum Guidelines are active for this project/thread until the user says otherwis
 
 ## Current Checklist
 
+- [x] Document the two requested mockup-based built-in themes.
+- [x] Add the two theme presets in `ThemePreset.kt`.
+- [x] Register the new presets in `ThemeManager.BuiltinThemes`.
+- [x] Keep the black space bar label readable with a narrow contrast guard.
+- [x] Run a narrow static/syntax check for the touched Kotlin files only.
+- [x] Mute the inactive T9 candidate row based on whether focus is on pinyin or Hanzi candidates.
+- [x] Run a narrow static/syntax check for the touched Kotlin files only.
+- [x] Make `InkBlack` black-only, keep alternate control icons black, and set keyboard body backgrounds to white.
+- [x] Run a narrow static/syntax check for the touched Kotlin files only.
+- [x] Tint KawaiiBar toolbar icons gray without changing keyboard key icon tint.
+- [x] Make pinyin/Hanzi candidate bubble backgrounds follow the keyboard body color.
+- [x] Run a narrow static/syntax check for the touched Kotlin files only.
+- [x] Match the mode/Caps indicator badge corner radius to the space bar.
+- [x] Run a narrow static/syntax check for the touched Kotlin file only.
+- [x] Resize the mode/Caps indicator as a compact space-bar-like strip.
+- [x] Add a subtle low-opacity bottom shadow to the pinyin/Hanzi candidate bubble.
+- [x] Run a narrow static/syntax check for the touched Kotlin files only.
+- [x] Narrow the mode/Caps indicator and strengthen the candidate bubble shadow range.
+- [x] Run a narrow static/syntax check for the touched Kotlin files only.
+- [x] Rename the new light themes to `InkBlack` and `InkPink`.
+- [x] Add dark built-in variants named `InkBlackDark` and `InkPinkDark`.
+- [x] Register the renamed light themes and new dark variants in the built-in theme list.
+- [x] Run a narrow static/syntax check for the touched Kotlin files only.
+- [x] Fix dark Ink space-bar background/text contrast.
+- [x] Run a narrow static/syntax check for the touched Kotlin files only.
+- [x] Reduce the global return key icon/background circle size.
+- [x] Record that compile checks should be skipped for routine visual tuning unless debugging is needed.
 - [x] Document the pending Delete and mode-switch animation requests without implementing them.
 - [x] Decide that physical Delete on an empty editor should use the same exit-IME logic as the on-screen exit button.
 - [x] Design the empty-editor Delete guard around composition, pending punctuation, candidates, and normal text deletion.

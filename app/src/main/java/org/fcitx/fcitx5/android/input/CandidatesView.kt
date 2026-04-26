@@ -273,12 +273,22 @@ class CandidatesView(
         orientation = LinearLayout.VERTICAL
         clipChildren = false
         clipToPadding = false
+        setPadding(0, 0, 0, dp(8))
     }
 
     private fun makeBubbleBackground() = GradientDrawable().apply {
-        setColor(theme.backgroundColor)
+        setColor(theme.keyboardColor)
         shape = GradientDrawable.RECTANGLE
         cornerRadius = dp(windowRadius).toFloat()
+    }
+
+    private fun View.applyLowOpacityBubbleShadow() {
+        elevation = dp(4).toFloat()
+        translationZ = 0f
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            outlineAmbientShadowColor = Color.argb(30, 0, 0, 0)
+            outlineSpotShadowColor = Color.argb(48, 0, 0, 0)
+        }
     }
 
     /** Bubble 1: first row only; width = preedit content (left-aligned with bubble 2). */
@@ -298,6 +308,7 @@ class CandidatesView(
         outlineProvider = ViewOutlineProvider.BACKGROUND
         clipChildren = false
         clipToPadding = false
+        applyLowOpacityBubbleShadow()
     }
 
     override fun onStartHandleFcitxEvent() {
@@ -1191,6 +1202,8 @@ class CandidatesView(
 
         minWidth = dp(windowMinWidth)
         padding = 0
+        clipChildren = false
+        clipToPadding = false
         setBackgroundColor(Color.TRANSPARENT)
         // Two bubbles: bubble1 = first row (width by pinyin), bubble2 = second + third rows
 

@@ -42,10 +42,18 @@ class LabeledCandidateItemUi(
         background = activeBackground
     }
 
-    fun update(candidate: FcitxEvent.Candidate, active: Boolean) {
+    fun update(candidate: FcitxEvent.Candidate, active: Boolean, inactiveRow: Boolean = false) {
         val candidateSignature = "${candidate.label}|${candidate.text}|${candidate.comment}"
-        val labelFg = if (active) theme.genericActiveForegroundColor else theme.candidateLabelColor
-        val fg = if (active) theme.genericActiveForegroundColor else theme.candidateTextColor
+        val labelFg = when {
+            active -> theme.genericActiveForegroundColor
+            inactiveRow -> theme.candidateCommentColor
+            else -> theme.candidateLabelColor
+        }
+        val fg = when {
+            active -> theme.genericActiveForegroundColor
+            inactiveRow -> theme.candidateCommentColor
+            else -> theme.candidateTextColor
+        }
         val altFg = if (active) theme.genericActiveForegroundColor else theme.candidateCommentColor
         root.text = buildSpannedString {
             // Hide label and comment in T9 mode for cleaner display

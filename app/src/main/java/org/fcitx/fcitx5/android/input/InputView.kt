@@ -114,14 +114,15 @@ class InputView(
         isClickable = false
         isFocusable = false
         gravity = Gravity.CENTER
-        minWidth = dp(88)
-        setPadding(dp(18), dp(10), dp(18), dp(10))
-        setTextSize(TypedValue.COMPLEX_UNIT_DIP, 24f)
+        minimumWidth = dp(52)
+        minimumHeight = dp(26)
+        setPadding(dp(8), 0, dp(8), 0)
+        setTextSize(TypedValue.COMPLEX_UNIT_DIP, 20f)
         setTypeface(typeface, Typeface.BOLD)
         setTextColor(theme.accentKeyTextColor)
         background = GradientDrawable().apply {
             shape = GradientDrawable.RECTANGLE
-            cornerRadius = dp(10f)
+            cornerRadius = dp(3f)
             setColor(theme.accentKeyBackgroundColor)
             setStroke(dp(1), theme.keyShadowColor)
         }

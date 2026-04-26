@@ -8,11 +8,50 @@ controls, and a readable keyboard surface.
 
 ## Current Task Design
 
-Implement upcoming physical-key behavior in small testable steps. The current
-completed steps cover empty-editor physical Delete, a T9 mode-switch badge, and
-English Caps/Shift no-pending-character feedback on the same badge. Later steps
-should preserve existing T9 candidate, punctuation, pinyin, and space-label
-behavior.
+Add two built-in light theme presets matching the provided mockups. Keep the
+implementation limited to theme preset definitions and the built-in theme list.
+
+## Theme Preset Design
+
+Create two `Theme.Builtin` presets in `ThemePreset.kt`:
+
+- `InkBlack`: gray/white/black base, black accent key, black active selection.
+- `InkPink`: same base, pink accent key, pink active selection.
+- `InkBlackDark`: dark black/gray base, white accent key, white active
+  selection with black foreground.
+- `InkPinkDark`: same dark base, pink accent key, pink active selection
+  with white foreground.
+
+Register both in `ThemeManager.BuiltinThemes` so they appear with other built-in
+themes. Do not add theme settings, custom serialization changes, or unrelated UI
+changes.
+Set `keyboardColor` to pure white for the keyboard body, and keep
+`altKeyTextColor` black so symbol, emoji, language, and backspace controls do
+not inherit the gray secondary text color.
+Keep KawaiiBar `ToolButton` icons on the gray secondary color by tinting them
+with `candidateCommentColor`; keyboard key icons continue to use
+`altKeyTextColor`.
+
+Because the theme model has `spaceBarColor` but no separate space-bar text
+color, add a small contrast guard in `TextKeyView`: derive the space label color
+from the actual space-bar background, using white text on dark bars and black
+text on light bars. The dark Ink themes use white space bars with black labels.
+Use the same small corner radius for the mode/Caps indicator badge as the space
+bar background. Size it as a compact key-like strip with a space-bar-like height
+ratio, but keep the width tight enough for the three-character mode labels.
+
+For T9 candidate focus, keep color state in the candidate row components:
+active-row non-focused candidates use `candidateTextColor`, inactive-row
+candidates use `candidateCommentColor`, and the focused candidate uses
+`genericActiveForegroundColor` on `genericActiveBackgroundColor`.
+Candidate bubble backgrounds should use `keyboardColor` so the pinyin/Hanzi UI
+matches the keyboard body.
+Give the combined pinyin/Hanzi candidate bubble a low-elevation outline shadow
+with reduced shadow color opacity where the platform supports it. Keep enough
+bottom padding around the candidate view so the softer shadow is not clipped.
+
+Keep the return key icon/background circle sizing in the shared key rendering
+path so all keyboard layouts and themes use the same smaller return visual.
 
 ## Pending Physical-Key Behavior Design
 

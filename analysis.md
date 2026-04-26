@@ -2,9 +2,57 @@
 
 ## Current Task
 
-Implement the first small physical-key behavior changes: physical Delete on an
-empty editor exits the IME, T9 mode switching shows an input-method-owned badge,
-and English Caps/Shift adopts that badge when no multi-tap character is pending.
+Add two user-requested built-in light themes from provided mockups: a grayscale
+variant with black candidate focus and a pink-accent variant with pink candidate
+focus.
+
+## Theme Color Request
+
+- The mockups show a light gray outer/background surface, a pure white keyboard
+  body, white candidate bubbles and popup surfaces, black primary text, and gray
+  secondary/comment text.
+- Variant one should be black-only for accents and keep the focused/active
+  candidate black with white text.
+- Variant two should use the same base colors but make the focused/active
+  candidate and accent/return key pink with white text.
+- Symbol, emoji, language, and backspace controls should use black icons/text in
+  both variants.
+- KawaiiBar toolbar icons above the keyboard should stay gray; they should not
+  share the black keyboard-control icon tint.
+- Pinyin/Hanzi candidate bubble backgrounds should follow the keyboard body
+  color instead of the outer background color.
+- The mode/Caps indicator badge should use the same corner radius as the space
+  bar so the feedback shape matches the keyboard surface.
+- The mode/Caps indicator should also use a space-bar-like height ratio and a
+  shorter compact width, rather than the taller large badge shape.
+- The combined pinyin/Hanzi candidate bubble should have a subtle low-opacity
+  blurred shadow below it to separate it from the keyboard body.
+- Follow-up visual tuning: make the mode/Caps indicator narrower, and make the
+  pinyin/Hanzi bubble shadow slightly more visible with a larger blur range.
+- Rename the new themes to `InkBlack` and `InkPink`. Their dark variants should
+  be named `InkBlackDark` and `InkPinkDark`.
+- Add two corresponding dark variants for the new Ink themes. Assumption:
+  `InkBlackDark` should be monochrome black/white/gray with white active
+  surfaces on dark keyboard body, while `InkPinkDark` should keep the same dark
+  base and use pink for active/accent surfaces.
+- Dark Ink space bar follow-up: both dark Ink themes should use a white space
+  bar with black label text. Space label contrast should be derived from the
+  actual `spaceBarColor`, not from the theme's normal key text color.
+- The return key icon/background circle should be slightly smaller as a global
+  keyboard setting, not a theme-specific override.
+- User verification preference update: do not run compile checks for routine
+  visual tuning unless debugging is needed or the user asks for a check.
+- The black space bar from the mockups needs a readable white label even though
+  the rest of the light theme uses black key text.
+- Candidate row clarification: the screenshots reuse the Hanzi-focused state.
+  The UI also needs the opposite focus state. When the Hanzi row is focused,
+  pinyin candidates should be gray; when the pinyin row is focused, Hanzi
+  candidates should be gray. The focused candidate itself stays white on the
+  active background.
+- The exact colors are inferred from screenshots, not sampled from a source
+  palette file. Use conservative hex values close to the visible swatches:
+  light gray `0xffd9d9d9`, medium gray `0xff9b9b9b`, black `0xff000000`,
+  white `0xffffffff`, and pink `0xffff8f9f`.
 
 ## Pending Physical-Key Requests
 
