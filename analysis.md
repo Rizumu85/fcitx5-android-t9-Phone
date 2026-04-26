@@ -56,6 +56,85 @@ focus.
 
 ## Pending Physical-Key Requests
 
+- Follow-up keyboard preference request: change the default regular virtual
+  keyboard portrait height from 40% to 39%. This is the non-T9
+  `keyboard_height_percent` default; existing user preferences remain unchanged.
+- Bug report: when typing English while in the Chinese input environment,
+  letters can become full-width until the user toggles the Full width/Half width
+  status action manually. The Fcitx pinyin engine adds the `fullwidth` status
+  action whenever pinyin is active; in this T9-focused app, full-width Latin
+  characters should not be the active state by default.
+- Clarification: the user should still be able to manually press the full-width
+  status button and intentionally type full-width/spaced English. The app should
+  only restore the default half-width state at input start, not continuously
+  override later manual status changes.
+- Bug report: after entering T9 digit `4`, the first Hanzi candidate can be
+  `感` and the top pinyin preview correctly shows `g`. When deleting the final
+  preview letter, the `g` disappears but `gan` briefly flashes. This suggests
+  the top preview falls back to the highlighted candidate's full pinyin comment
+  during the transient empty-key state. Deleting the last preview letter should
+  clear the preview without showing a full candidate reading fallback.
+- Root cause: `buildT9CandidatePreviewReading()` returned the full normalized
+  candidate comment when `getT9CompositionKeyCount()` was zero. That made stale
+  candidate comments eligible as a top-row fallback after the final digit was
+  deleted.
+- Bug report: while typing pinyin in Chinese T9, deleting pinyin can make the
+  Hanzi candidate focus briefly jump to a stale non-first item, such as the
+  fifth candidate, before returning to the first candidate. This likely means a
+  transient candidate refresh is rendering with a stale `cursorIndex` before the
+  local T9 cursor reset applies.
+- Visual root cause: `LabeledCandidateItemUi` animated the old active Hanzi
+  highlight out over 190 ms when the same candidate became inactive. During
+  pinyin deletion, the local T9 cursor can reset to the first candidate while
+  the previous fifth highlight is still fading, making the stale focus appear to
+  flash.
+- Follow-up T9 deletion behavior: when deleting the final pinyin letter, the
+  pinyin option row should disappear immediately without the reveal/collapse
+  animation.
+- Clarification: deleting the final pinyin letter should hide both the pinyin
+  options and the Hanzi candidate bubble immediately. Confirming/committing the
+  final Hanzi candidate should also make the candidate UI disappear directly,
+  without waiting for a stale candidate page to render once more.
+- Implementation note: `CandidatesView` suppresses stale T9 candidate pages when
+  T9 has no active composition keys and no pending punctuation. This preserves
+  no-pinyin `1` punctuation because pending punctuation bypasses the suppress
+  branch.
+- Follow-up T9 punctuation behavior: while active pinyin input exists, pressing
+  `1` should be consumed as a no-op instead of replacing the candidate area with
+  the punctuation list. This avoids confusing accidental `1` presses; the
+  original pinyin state remains intact.
+- Implementation note: the no-op applies to short press `1` while T9 composition
+  key count is nonzero and no punctuation is already pending. Existing pending
+  punctuation cycling still uses `1`.
+- Follow-up animation tuning: pinyin and Hanzi candidate display animations feel
+  laggy. Shorten the pinyin row reveal and Hanzi focus highlight timings, reduce
+  movement/scale, and keep the interaction feeling snappy.
+- Follow-up animation clarification: restore the previous Hanzi focus timing and
+  scale, because that felt better. Keep the pinyin row fast, but add a
+  left-to-right reveal for pinyin candidates such as the `pqrs` row.
+- Bug report: after selecting a pinyin filter, the first Hanzi candidate can
+  flash white strongly. This is likely because a newly bound active Hanzi
+  candidate sets its active background to full alpha immediately instead of
+  entering through the normal highlight animation.
+- Follow-up animation experiment: remove non-focus animations from the candidate
+  area. Keep only candidate focus/highlight animations; pinyin row show/hide
+  should become an immediate state change.
+- Follow-up clarification: remove focus/highlight animations too. Candidate
+  focus should switch immediately for both Hanzi and pinyin rows.
+- Follow-up bug report: on the first pinyin input, the pinyin filter row still
+  appears to fill from left to right. There are no explicit row animations left,
+  so the likely cause is the row wrapper becoming visible while its synced
+  candidate-row width is still `0`, then relayouting wider.
+- Follow-up bug report: after confirming a pinyin filter, the Hanzi row can show
+  the previous unfiltered list for one frame before the filtered list arrives.
+  This is caused by reusing the previous stable bulk page while the new filter
+  request is pending; for filter-context changes the old page should be cleared
+  instead of kept as a placeholder.
+- Additional discovery: immediately after a pinyin chip is selected, the T9
+  model enters `pendingSelection` while the Rime input replacement runs
+  asynchronously. During that short window the resolved filter prefix can still
+  be hidden from `getT9ResolvedPinyinFilterPrefixes()`, so the Hanzi row must be
+  cleared based on the pending-selection state too.
 - When the target editor/input field has no text, pressing the physical Delete
   key should exit the input method using the same logic as the existing
   on-screen exit-IME button, instead of acting as a normal backspace.

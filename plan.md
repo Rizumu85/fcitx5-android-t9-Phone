@@ -33,6 +33,38 @@ Rizum Guidelines are active for this project/thread until the user says otherwis
 - [x] Run a narrow static/syntax check for the touched Kotlin files only.
 - [x] Reduce the global return key icon/background circle size.
 - [x] Record that compile checks should be skipped for routine visual tuning unless debugging is needed.
+- [x] Reproduce the T9 preview fallback path for deleting the last preview letter.
+- [x] Prevent candidate-comment pinyin fallback when the current T9 digit count is zero.
+- [x] Leave compile checks for this bug fix until debugging requires them or the user asks.
+- [x] Trace the T9 Hanzi focus jump during pinyin deletion.
+- [x] Keep old Hanzi candidate highlights from lingering during focus resets.
+- [x] Leave compile checks for this bug fix until debugging requires them or the user asks.
+- [x] Hide the pinyin option row immediately when deletion empties pinyin choices.
+- [x] Make Chinese T9 `1` a no-op while active pinyin input exists.
+- [x] Leave compile checks for this visual/input-state tweak until debugging requires them or the user asks.
+- [x] Suppress the whole stale T9 candidate bubble when active pinyin key count reaches zero.
+- [x] Keep no-pinyin `1` punctuation behavior unchanged.
+- [x] Leave compile checks for this visual/input-state tweak until debugging requires them or the user asks.
+- [x] Shorten pinyin row reveal and Hanzi focus highlight animations for snappier candidate display.
+- [x] Leave compile checks for this visual tuning until debugging requires them or the user asks.
+- [x] Restore the previous Hanzi focus highlight timing and scale.
+- [x] Add a left-to-right reveal to pinyin candidate row display.
+- [x] Leave compile checks for this visual tuning until debugging requires them or the user asks.
+- [x] Prevent newly filtered active Hanzi candidates from flashing full-opacity white on bind.
+- [x] Leave compile checks for this visual tuning until debugging requires them or the user asks.
+- [x] Remove candidate-area animations except focus/highlight animations.
+- [x] Leave compile checks for this visual experiment until debugging requires them or the user asks.
+- [x] Remove candidate focus/highlight animations as well.
+- [x] Leave compile checks for this visual experiment until debugging requires them or the user asks.
+- [x] Prevent first pinyin row display from showing a width-sync reveal.
+- [x] Clear stale Hanzi bulk candidates when the pinyin filter context changes.
+- [x] Hide stale Hanzi candidates while a selected pinyin segment is pending engine replacement.
+- [x] Leave compile checks for this candidate refresh tweak until debugging requires them or the user asks.
+- [x] Change the regular virtual keyboard portrait height default to 39%.
+- [x] Force the Fcitx fullwidth status action back to half-width at input start while T9 mode is enabled.
+- [x] Leave compile checks for this default/status tweak until debugging requires them or the user asks.
+- [x] Allow manual full-width toggles after the input-start default is restored.
+- [x] Leave compile checks for this fullwidth behavior correction until debugging requires them or the user asks.
 - [x] Document the pending Delete and mode-switch animation requests without implementing them.
 - [x] Decide that physical Delete on an empty editor should use the same exit-IME logic as the on-screen exit button.
 - [x] Design the empty-editor Delete guard around composition, pending punctuation, candidates, and normal text deletion.

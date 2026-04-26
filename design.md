@@ -53,6 +53,12 @@ bottom padding around the candidate view so the softer shadow is not clipped.
 Keep the return key icon/background circle sizing in the shared key rendering
 path so all keyboard layouts and themes use the same smaller return visual.
 
+## Keyboard Defaults Design
+
+Use 39% as the default regular virtual keyboard height in portrait orientation.
+Keep the existing landscape default and the separate T9 keyboard height defaults
+unchanged.
+
 ## Pending Physical-Key Behavior Design
 
 For the physical Delete key, add an empty-editor guard before normal backspace
@@ -83,6 +89,12 @@ When a pending multi-tap character exists, continue updating the editor
 composing text for that actual character.
 Keep the badge animation brief: fast fade/scale in, short hold, fast fade out,
 so repeated physical-key switches do not feel delayed.
+
+When T9 mode is enabled, start each input session with Fcitx's `fullwidth`
+status action inactive. The app's T9 Chinese/English workflow expects ASCII
+English characters by default, but a later manual press on the full-width status
+button should be respected so the user can intentionally type full-width/spaced
+English.
 
 ## T9 Punctuation Design
 
@@ -159,6 +171,47 @@ Because the same row also indicates how many T9 digit keys have been entered,
 candidate comment readings should be cropped by the current T9 key count before
 display. This keeps prefix matches intuitive: after one `2`, a highlighted `ai`
 candidate previews `a`, and a highlighted `ba` candidate previews `b`.
+When the current T9 digit count becomes zero during deletion, the top pinyin
+preview must stay empty. Do not use a highlighted candidate comment as fallback
+while there are no active T9 keys, because that can flash a full reading such as
+`gan` after the last preview letter has been deleted.
+When T9 pinyin deletion changes the candidate context, the Hanzi row should
+render with a deterministic local focus immediately. Do not allow a transient
+candidate page to display an engine-provided or stale `cursorIndex` such as a
+previous fifth item before the local cursor reset moves focus back to the first
+item.
+When a Hanzi candidate loses focus, clear its active background immediately
+instead of fading it out. The incoming focus may still animate, but the old
+highlight must not linger during T9 deletion or candidate-context resets.
+When the pinyin candidate row becomes empty, hide it immediately. The expanding
+animation is useful when pinyin choices appear, but deletion to an empty pinyin
+state should feel like the symbol-list path: a direct state change, not a
+decorative collapse.
+When the active T9 composition key count is zero and there is no pending
+punctuation, suppress the stale Hanzi candidate page as well. This ensures the
+whole candidate bubble disappears immediately after deleting the final pinyin
+letter or committing the final Hanzi candidate, even if Rime has not yet emitted
+the empty candidate event.
+In Chinese T9, `1` should only open or cycle local punctuation when there is no
+active pinyin input. If pinyin digits are active and no punctuation is already
+pending, consume `1` as a no-op so accidental presses do not replace the visible
+candidate context with punctuation.
+Pinyin candidate display should be short and crisp. Keep the pinyin row reveal
+under a tenth of a second with minimal vertical travel, and add a left-to-right
+content reveal so rows such as `pqrs` feel like they unfold from the start edge.
+Keep the Hanzi focus highlight timing/scale close to the earlier softer version;
+only stale outgoing highlights should clear immediately.
+When a newly filtered Hanzi candidate becomes active, do not set the active
+background to full opacity during binding. Start the incoming active highlight
+from transparent and let the normal focus animation bring it in, so selecting a
+pinyin filter does not produce a strong white flash on the first Hanzi item.
+For candidate animation experiments, remove all candidate-area animations. The
+pinyin row itself should appear and disappear immediately without reveal,
+collapse, translation, or left-to-right scaling, and pinyin/Hanzi focus changes
+should switch immediately without animated highlight transitions.
+The pinyin row should not be made visible while its synced width is still
+unknown, because a later `0 -> candidate width` layout pass reads visually as a
+left-to-right reveal even without animation.
 
 ## T9 Candidate Refresh Design
 
@@ -166,6 +219,12 @@ When a new bulk-filter request is needed, keep the last stable filtered page
 visible while the async request is pending. Replace it only when the matching
 request returns. This avoids a transient empty candidate render while preserving
 the existing fallback path for the first request or when no previous page exists.
+Exception: when the resolved pinyin filter prefix changes, clear the old bulk
+page immediately. Showing stale unfiltered Hanzi for the pending frame is more
+confusing than a brief empty or locally filtered state.
+Also hide the Hanzi row while a selected pinyin segment is still pending engine
+replacement. The top reading/pinyin row may remain, but stale Hanzi should not
+be used as a placeholder during that asynchronous handoff.
 
 T9 Hanzi rendering should prioritize the user's character budget over the raw
 Rime page size. Request a bulk candidate pool for both no-filter and

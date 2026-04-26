@@ -3,12 +3,9 @@
  */
 package org.fcitx.fcitx5.android.input.t9
 
-import android.animation.ValueAnimator
 import android.graphics.drawable.GradientDrawable
 import android.os.Build
 import android.view.Gravity
-import android.view.animation.AccelerateDecelerateInterpolator
-import android.view.animation.OvershootInterpolator
 import android.view.ViewGroup
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
@@ -94,7 +91,6 @@ class T9PinyinChipAdapter(
 
     override fun onViewRecycled(holder: ViewHolder) {
         holder.chip.setOnClickListener(null)
-        holder.cancelAnimations()
         super.onViewRecycled(holder)
     }
 
@@ -107,7 +103,6 @@ class T9PinyinChipAdapter(
         }
         private var lastActive = false
         private var lastSignature = ""
-        private var highlightAnimator: ValueAnimator? = null
 
         init {
             chip.background = activeBackground
@@ -125,7 +120,6 @@ class T9PinyinChipAdapter(
             )
             if (pinyin != lastSignature) {
                 lastSignature = pinyin
-                highlightAnimator?.cancel()
                 lastActive = active
                 activeBackground.alpha = if (active) 255 else 0
                 val scale = if (active) ACTIVE_HIGHLIGHT_SCALE else 1f
@@ -133,14 +127,10 @@ class T9PinyinChipAdapter(
                 chip.scaleY = scale
                 return
             }
-            animateHighlight(active)
+            updateHighlight(active)
         }
 
-        fun cancelAnimations() {
-            highlightAnimator?.cancel()
-        }
-
-        private fun animateHighlight(active: Boolean) {
+        private fun updateHighlight(active: Boolean) {
             val targetAlpha = if (active) 255 else 0
             val targetScale = if (active) ACTIVE_HIGHLIGHT_SCALE else 1f
             if (lastActive == active && activeBackground.alpha == targetAlpha) {
@@ -149,29 +139,13 @@ class T9PinyinChipAdapter(
                 return
             }
             lastActive = active
-            highlightAnimator?.cancel()
-            val startAlpha = activeBackground.alpha
-            val startScale = chip.scaleX.takeIf { it > 0f } ?: 1f
-            highlightAnimator = ValueAnimator.ofFloat(0f, 1f).apply {
-                duration = HIGHLIGHT_ANIMATION_DURATION_MS
-                interpolator =
-                    if (active) HIGHLIGHT_ACTIVATE_INTERPOLATOR else AccelerateDecelerateInterpolator()
-                addUpdateListener { animator ->
-                    val progress = animator.animatedValue as Float
-                    activeBackground.alpha =
-                        (startAlpha + (targetAlpha - startAlpha) * progress).toInt()
-                    val scale = startScale + (targetScale - startScale) * progress
-                    chip.scaleX = scale
-                    chip.scaleY = scale
-                }
-                start()
-            }
+            activeBackground.alpha = targetAlpha
+            chip.scaleX = targetScale
+            chip.scaleY = targetScale
         }
     }
 
     companion object {
-        private const val HIGHLIGHT_ANIMATION_DURATION_MS = 180L
         private const val ACTIVE_HIGHLIGHT_SCALE = 1.06f
-        private val HIGHLIGHT_ACTIVATE_INTERPOLATOR = OvershootInterpolator(0.5f)
     }
 }

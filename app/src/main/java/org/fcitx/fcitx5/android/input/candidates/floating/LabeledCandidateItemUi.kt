@@ -5,12 +5,9 @@
 
 package org.fcitx.fcitx5.android.input.candidates.floating
 
-import android.animation.ValueAnimator
 import android.content.Context
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
-import android.view.animation.AccelerateDecelerateInterpolator
-import android.view.animation.OvershootInterpolator
 import android.widget.TextView
 import androidx.core.text.buildSpannedString
 import androidx.core.text.color
@@ -35,7 +32,6 @@ class LabeledCandidateItemUi(
     }
     private var lastActive = false
     private var lastCandidateSignature = ""
-    private var highlightAnimator: ValueAnimator? = null
 
     override val root = textView {
         setupTextView(this)
@@ -68,18 +64,17 @@ class LabeledCandidateItemUi(
         }
         if (candidateSignature != lastCandidateSignature) {
             lastCandidateSignature = candidateSignature
-            highlightAnimator?.cancel()
-            lastActive = active
-            activeBackground.alpha = if (active) 255 else 0
-            val scale = if (active) ACTIVE_HIGHLIGHT_SCALE else 1f
-            root.scaleX = scale
-            root.scaleY = scale
+            lastActive = false
+            activeBackground.alpha = 0
+            root.scaleX = 1f
+            root.scaleY = 1f
+            updateHighlight(active)
             return
         }
-        animateHighlight(active)
+        updateHighlight(active)
     }
 
-    private fun animateHighlight(active: Boolean) {
+    private fun updateHighlight(active: Boolean) {
         val targetAlpha = if (active) 255 else 0
         val targetScale = if (active) ACTIVE_HIGHLIGHT_SCALE else 1f
         if (lastActive == active && activeBackground.alpha == targetAlpha) {
@@ -88,27 +83,12 @@ class LabeledCandidateItemUi(
             return
         }
         lastActive = active
-        highlightAnimator?.cancel()
-        val startAlpha = activeBackground.alpha
-        val startScale = root.scaleX.takeIf { it > 0f } ?: 1f
-        highlightAnimator = ValueAnimator.ofFloat(0f, 1f).apply {
-            duration = HIGHLIGHT_ANIMATION_DURATION_MS
-            interpolator = if (active) HIGHLIGHT_ACTIVATE_INTERPOLATOR else AccelerateDecelerateInterpolator()
-            addUpdateListener { animator ->
-                val progress = animator.animatedValue as Float
-                activeBackground.alpha =
-                    (startAlpha + (targetAlpha - startAlpha) * progress).toInt()
-                val scale = startScale + (targetScale - startScale) * progress
-                root.scaleX = scale
-                root.scaleY = scale
-            }
-            start()
-        }
+        activeBackground.alpha = targetAlpha
+        root.scaleX = targetScale
+        root.scaleY = targetScale
     }
 
     companion object {
-        private const val HIGHLIGHT_ANIMATION_DURATION_MS = 190L
         private const val ACTIVE_HIGHLIGHT_SCALE = 1.07f
-        private val HIGHLIGHT_ACTIVATE_INTERPOLATOR = OvershootInterpolator(0.55f)
     }
 }

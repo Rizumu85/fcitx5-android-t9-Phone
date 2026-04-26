@@ -162,6 +162,15 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
         }
     }
 
+    private suspend fun FcitxAPI.enforceHalfWidthForT9() {
+        if (!t9InputModeEnabled) return
+        val fullwidthAction = statusArea().firstOrNull {
+            it.name == "fullwidth" &&
+                (it.icon == "fcitx-fullwidth-active" || it.isChecked)
+        } ?: return
+        activateAction(fullwidthAction.id)
+    }
+
     /**
      * Handle a virtual (on-screen) backspace press. Returns true when the press was consumed
      * by reopening a previously selected pinyin segment back into its source digits; the caller
@@ -1137,6 +1146,9 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
 
     private fun handleChinesePunctuationKey(): Boolean {
         multiTapHandler.removeCallbacks(t9PunctuationTimeoutRunnable)
+        if (t9PendingPunctuationText == null && getT9CompositionKeyCount() > 0) {
+            return true
+        }
         if (t9PendingPunctuationText == null) {
             t9PendingPunctuationSet = T9PunctuationSet.CHINESE
             t9PendingPunctuationIndex = 0
@@ -1499,6 +1511,15 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
 
             T9InputMode.CHINESE -> {
                 // Chinese mode: short press = Rime T9, long press = digit
+                if (
+                    keyCode == KeyEvent.KEYCODE_1 &&
+                    event.repeatCount == 0 &&
+                    t9PendingPunctuationText == null &&
+                    getT9CompositionKeyCount() > 0
+                ) {
+                    digitLongPressFlags[keyCode] = false
+                    return true
+                }
                 if (chineseState == T9InputState.CHINESE_COMPOSING) {
                     // When composing, pass all digits to Rime
                     return false
@@ -1775,6 +1796,12 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
         return resolved.joinToString(" ") { it.pinyin }
     }
 
+    fun hasPendingT9PinyinSelection(): Boolean {
+        return t9InputModeEnabled &&
+            currentT9Mode == T9InputMode.CHINESE &&
+            t9CompositionModel.pendingSelection != null
+    }
+
     fun getT9ResolvedPinyinFilterPrefixes(): List<String> {
         val resolved = t9CompositionModel.resolvedSegments.map { it.pinyin }
         if (resolved.isEmpty()) return emptyList()
@@ -1873,7 +1900,7 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
     private fun buildT9CandidatePreviewReading(normalizedComment: String): String {
         if (normalizedComment.isEmpty()) return ""
         var remainingKeys = getT9CompositionKeyCount()
-        if (remainingKeys <= 0) return normalizedComment
+        if (remainingKeys <= 0) return ""
         val parts = mutableListOf<String>()
         normalizedComment.split(' ')
             .filter { it.isNotEmpty() }
@@ -2432,6 +2459,7 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
             if (!isNullType) {
                 focus(true)
             }
+            enforceHalfWidthForT9()
         }
     }
 

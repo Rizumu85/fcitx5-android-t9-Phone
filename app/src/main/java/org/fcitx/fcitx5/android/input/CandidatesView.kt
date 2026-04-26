@@ -6,9 +6,6 @@
 package org.fcitx.fcitx5.android.input
 
 import android.annotation.SuppressLint
-import android.animation.Animator
-import android.animation.AnimatorListenerAdapter
-import android.animation.ValueAnimator
 import android.graphics.Color
 import android.graphics.Rect
 import android.graphics.drawable.GradientDrawable
@@ -20,7 +17,6 @@ import android.view.ViewOutlineProvider
 import android.view.ViewTreeObserver.OnGlobalLayoutListener
 import android.view.ViewTreeObserver.OnPreDrawListener
 import android.view.WindowInsets
-import android.view.animation.AccelerateDecelerateInterpolator
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -158,6 +154,7 @@ class CandidatesView(
     private var t9PendingPunctuationAllCandidates: List<IndexedValue<FcitxEvent.Candidate>> = emptyList()
     private var t9PendingPunctuationPageIndex = 0
     private var t9BulkFilterRequestSignature = ""
+    private var t9BulkFilterPrefixSignature = ""
     private var t9BulkFilterPending = false
     private var t9BulkFilteredPaged: FcitxEvent.PagedCandidateEvent.Data? = null
     private var t9BulkFilteredOriginalIndices = intArrayOf()
@@ -169,8 +166,6 @@ class CandidatesView(
     private var t9LocalBudgetedPageIndex = 0
     private var t9ShownUsesLocalBudget = false
     private var pinyinRowTargetVisible = false
-    private var pinyinRowRevealProgress = 0f
-    private var pinyinRowAnimator: ValueAnimator? = null
 
     private data class T9MatchedCandidates(
         val prefix: String?,
@@ -336,7 +331,7 @@ class CandidatesView(
         resetT9BulkFilterState()
         preeditUi.update(inputPanel)
         preeditUi.root.visibility = GONE
-        setPinyinRowVisible(false, animate = false)
+        setPinyinRowVisible(false)
         service.moveT9CandidateFocus(FcitxInputMethodService.T9CandidateFocus.BOTTOM)
         updateT9FocusIndicator()
         candidatesUi.update(paged, orientation)
@@ -461,17 +456,27 @@ class CandidatesView(
         val pendingPunctuationBudgetedPaged = pendingPunctuationPaged?.let {
             buildT9PendingPunctuationPaged(it)
         }
-        if (pendingPunctuationPaged == null) {
+        val pendingT9PinyinSelection = t9InputModeEnabled && service.hasPendingT9PinyinSelection()
+        val suppressEmptyT9Candidates = t9InputModeEnabled &&
+            pendingPunctuationPaged == null &&
+            service.getT9CompositionKeyCount() <= 0
+        if (suppressEmptyT9Candidates || pendingT9PinyinSelection) {
+            resetT9BulkFilterState()
+        } else if (pendingPunctuationPaged == null) {
             requestT9BulkFilteredCandidatesIfNeeded(t9InputModeEnabled, t9FilterPrefixes)
         } else {
             resetT9BulkFilterState()
         }
-        val filteredPaged = if (t9InputModeEnabled) {
+        val filteredPaged = if (suppressEmptyT9Candidates || pendingT9PinyinSelection) {
+            FcitxEvent.PagedCandidateEvent.Data.Empty to null
+        } else if (t9InputModeEnabled) {
             filterPagedByT9PinyinPrefixes(paged, t9FilterPrefixes)
         } else {
             paged to null
         }
         val localBudgetedPaged = if (
+            !suppressEmptyT9Candidates &&
+            !pendingT9PinyinSelection &&
             pendingPunctuationPaged == null &&
             t9InputModeEnabled &&
             t9FilterPrefixes.isEmpty() &&
@@ -492,7 +497,9 @@ class CandidatesView(
             else -> filteredPaged.first
         }
         val cursorContextSignature = buildT9CursorContextSignature(t9FilterPrefixes)
-        val effectivePaged = if (pendingPunctuationBudgetedPaged != null) {
+        val effectivePaged = if (suppressEmptyT9Candidates || pendingT9PinyinSelection) {
+            FcitxEvent.PagedCandidateEvent.Data.Empty
+        } else if (pendingPunctuationBudgetedPaged != null) {
             pendingPunctuationBudgetedPaged
         } else if (t9InputModeEnabled) {
             applyT9HanziCursor(candidateSource, cursorContextSignature)
@@ -526,16 +533,20 @@ class CandidatesView(
         } else {
             null
         }
-        val panelToShow = t9State?.topReading?.let {
-            FcitxEvent.InputPanelEvent.Data(it, inputPanel.auxUp, inputPanel.auxDown)
-        } ?: inputPanel
+        val panelToShow = if (suppressEmptyT9Candidates) {
+            FcitxEvent.InputPanelEvent.Data()
+        } else {
+            t9State?.topReading?.let {
+                FcitxEvent.InputPanelEvent.Data(it, inputPanel.auxUp, inputPanel.auxDown)
+            } ?: inputPanel
+        }
         preeditUi.update(panelToShow)
         preeditUi.root.visibility = if (preeditUi.visible) VISIBLE else GONE
         candidatesUi.update(effectivePaged, orientation)
         syncPinyinRowWidthToCandidates()
         updatePinyinBar(t9State?.pinyinOptions ?: emptyList(), t9InputModeEnabled)
         updateT9FocusIndicator()
-        if (evaluateVisibility(
+        if (!suppressEmptyT9Candidates && evaluateVisibility(
                 t9State?.topReading,
                 t9State?.pinyinRowVisible == true,
                 effectivePaged.candidates.isNotEmpty()
@@ -882,15 +893,21 @@ class CandidatesView(
             resetT9BulkFilterState()
             return
         }
+        val prefixSignature = prefixes.joinToString(separator = "/")
         val signature = buildString {
-            append(prefixes.joinToString(separator = "/")).append('|')
+            append(prefixSignature).append('|')
             append(t9HanziCharacterBudget).append('|')
             append(inputPanel.preedit).append('|')
             append(paged.candidates.joinToString(separator = "\n") { "${it.text}|${it.comment}" })
         }
         if (signature == t9BulkFilterRequestSignature) return
+        val prefixChanged = prefixSignature != t9BulkFilterPrefixSignature
+        t9BulkFilterPrefixSignature = prefixSignature
         t9BulkFilterRequestSignature = signature
         t9BulkFilterPending = true
+        if (prefixChanged) {
+            t9BulkFilteredPaged = null
+        }
         t9BulkFilteredOriginalIndices = intArrayOf()
         t9BulkFilteredMatchedPrefix = null
         t9BulkFilteredAllCandidates = emptyList()
@@ -919,6 +936,7 @@ class CandidatesView(
 
     private fun resetT9BulkFilterState() {
         t9BulkFilterRequestSignature = ""
+        t9BulkFilterPrefixSignature = ""
         t9BulkFilterPending = false
         t9BulkFilteredPaged = null
         t9BulkFilteredOriginalIndices = intArrayOf()
@@ -954,58 +972,43 @@ class CandidatesView(
         }
     }
 
-    private fun setPinyinRowVisible(visible: Boolean, animate: Boolean) {
+    private fun setPinyinRowVisible(visible: Boolean) {
         pinyinRowTargetVisible = visible
+        pinyinBarRecyclerView.alpha = 1f
+        pinyinBarRecyclerView.scaleX = 1f
+        pinyinBarRecyclerView.translationY = 0f
         if (visible) {
             val widthReady = syncPinyinRowWidthToCandidates()
-            val firstReveal = pinyinRowWrapper.visibility != View.VISIBLE && pinyinRowRevealProgress <= 0f
-            pinyinBarRecyclerView.visibility = View.VISIBLE
-            pinyinRowWrapper.visibility = View.VISIBLE
-            if (!animate) {
-                pinyinRowAnimator?.cancel()
-                preparePinyinRowForReveal()
-                applyPinyinRowRevealProgress(1f)
-                return
-            }
-            if (!widthReady && firstReveal) {
-                pinyinRowAnimator?.cancel()
-                applyPinyinRowRevealProgress(0f)
+            setPinyinRowHeight(pinyinBarRowHeightPx)
+            if (widthReady) {
+                pinyinBarRecyclerView.visibility = View.VISIBLE
+                pinyinRowWrapper.visibility = View.VISIBLE
+            } else {
+                pinyinBarRecyclerView.visibility = View.INVISIBLE
+                pinyinRowWrapper.visibility = View.INVISIBLE
                 pinyinRowWrapper.post {
                     if (!pinyinRowTargetVisible) return@post
-                    if (!syncPinyinRowWidthToCandidates()) {
-                        applyPinyinRowRevealProgress(1f)
-                        return@post
+                    if (syncPinyinRowWidthToCandidates()) {
+                        pinyinBarRecyclerView.visibility = View.VISIBLE
+                        pinyinRowWrapper.visibility = View.VISIBLE
                     }
-                    preparePinyinRowForReveal()
-                    animatePinyinRowReveal(1f)
                 }
-                return
             }
-            if (firstReveal) {
-                preparePinyinRowForReveal()
-            }
-            animatePinyinRowReveal(1f)
         } else {
             service.moveT9CandidateFocus(FcitxInputMethodService.T9CandidateFocus.BOTTOM)
-            pinyinBarRecyclerView.animate().cancel()
-            pinyinBarRecyclerView.alpha = 1f
-            pinyinBarRecyclerView.translationY = 0f
-            if (!animate || pinyinRowWrapper.visibility != View.VISIBLE) {
-                pinyinRowAnimator?.cancel()
-                pinyinBarAdapter.clear()
-                pinyinBarRecyclerView.scrollToPosition(0)
-                pinyinBarRecyclerView.visibility = View.GONE
-                pinyinRowWrapper.visibility = View.GONE
-                applyPinyinRowRevealProgress(0f)
-                return
-            }
-            animatePinyinRowReveal(0f) {
-                if (!pinyinRowTargetVisible) {
-                    pinyinBarAdapter.clear()
-                    pinyinBarRecyclerView.scrollToPosition(0)
-                    pinyinBarRecyclerView.visibility = View.GONE
-                    pinyinRowWrapper.visibility = View.GONE
-                }
+            pinyinBarAdapter.clear()
+            pinyinBarRecyclerView.scrollToPosition(0)
+            pinyinBarRecyclerView.visibility = View.GONE
+            pinyinRowWrapper.visibility = View.GONE
+            setPinyinRowHeight(0)
+        }
+    }
+
+    private fun setPinyinRowHeight(height: Int) {
+        (pinyinRowWrapper.layoutParams as? LinearLayout.LayoutParams)?.let { params ->
+            if (params.height != height) {
+                params.height = height
+                pinyinRowWrapper.layoutParams = params
             }
         }
     }
@@ -1036,21 +1039,6 @@ class CandidatesView(
         return true
     }
 
-    private fun preparePinyinRowForReveal(): Boolean {
-        val width = listOf(
-            pinyinRowWrapper.width,
-            pinyinRowWrapper.measuredWidth,
-            (pinyinRowWrapper.layoutParams as? LinearLayout.LayoutParams)?.width ?: 0
-        ).firstOrNull { it > 0 } ?: return false
-        val widthSpec = MeasureSpec.makeMeasureSpec(width, MeasureSpec.EXACTLY)
-        val heightSpec = MeasureSpec.makeMeasureSpec(pinyinBarRowHeightPx, MeasureSpec.EXACTLY)
-        pinyinRowWrapper.measure(widthSpec, heightSpec)
-        pinyinRowWrapper.layout(0, 0, width, pinyinBarRowHeightPx)
-        pinyinBarRecyclerView.measure(widthSpec, heightSpec)
-        pinyinBarRecyclerView.layout(0, 0, width, pinyinBarRowHeightPx)
-        return true
-    }
-
     private fun ensureCandidateRowMeasuredForPinyinSync() {
         val availableWidth = (maxWidth.takeIf { it > 0 }
             ?: parentSize[0].roundToInt().takeIf { it > 0 }
@@ -1062,73 +1050,17 @@ class CandidatesView(
         candidatesUi.root.measure(widthSpec, heightSpec)
     }
 
-    private fun animatePinyinRowReveal(targetProgress: Float, endAction: (() -> Unit)? = null) {
-        if (pinyinRowRevealProgress == targetProgress) {
-            endAction?.invoke()
-            return
-        }
-        pinyinRowAnimator?.cancel()
-        val startProgress = pinyinRowRevealProgress
-        pinyinRowAnimator = ValueAnimator.ofFloat(startProgress, targetProgress).apply {
-            duration = PINYIN_ROW_ANIMATION_DURATION_MS
-            interpolator = PINYIN_ROW_INTERPOLATOR
-            addUpdateListener { animator ->
-                applyPinyinRowRevealProgress(animator.animatedValue as Float)
-            }
-            addListener(object : AnimatorListenerAdapter() {
-                private var cancelled = false
-
-                override fun onAnimationCancel(animation: Animator) {
-                    cancelled = true
-                }
-
-                override fun onAnimationEnd(animation: Animator) {
-                    if (pinyinRowAnimator === animation) {
-                        pinyinRowAnimator = null
-                    }
-                    if (!cancelled) {
-                        endAction?.invoke()
-                    }
-                }
-            })
-            start()
-        }
-    }
-
-    private fun applyPinyinRowRevealProgress(progress: Float) {
-        pinyinRowRevealProgress = progress.coerceIn(0f, 1f)
-        val height = (pinyinBarRowHeightPx * pinyinRowRevealProgress).roundToInt()
-            .coerceAtLeast(if (pinyinRowRevealProgress > 0f) 1 else 0)
-        (pinyinRowWrapper.layoutParams as? LinearLayout.LayoutParams)?.let { params ->
-            if (params.height != height) {
-                params.height = height
-                pinyinRowWrapper.layoutParams = params
-            }
-        }
-        pinyinBarRecyclerView.visibility = if (pinyinRowRevealProgress > 0f) {
-            View.VISIBLE
-        } else {
-            View.INVISIBLE
-        }
-        val contentProgress = ((pinyinRowRevealProgress - PINYIN_CONTENT_REVEAL_START_FRACTION) /
-            (1f - PINYIN_CONTENT_REVEAL_START_FRACTION)).coerceIn(0f, 1f)
-        pinyinBarRecyclerView.alpha = 1f
-        pinyinBarRecyclerView.translationY =
-            dpCandidates(PINYIN_CONTENT_REVEAL_OFFSET_DP).toFloat() * (1f - contentProgress)
-    }
-
     private fun updatePinyinBar(candidates: List<String>, useT9: Boolean) {
         if (!useT9) {
-            setPinyinRowVisible(false, animate = true)
+            setPinyinRowVisible(false)
             return
         }
         if (candidates.isEmpty()) {
-            setPinyinRowVisible(false, animate = true)
+            setPinyinRowVisible(false)
             return
         }
-        pinyinBarRecyclerView.animate().cancel()
         val changed = pinyinBarAdapter.submitList(candidates)
-        setPinyinRowVisible(true, animate = true)
+        setPinyinRowVisible(true)
         if (changed) {
             pinyinBarRecyclerView.scrollToPosition(0)
         }
@@ -1261,6 +1193,13 @@ class CandidatesView(
                     (pinyinRowWrapper.layoutParams as? LinearLayout.LayoutParams)?.width = cw
                     pinyinRowWrapper.requestLayout()
                 }
+                if (cw > 0 &&
+                    pinyinRowTargetVisible &&
+                    pinyinRowWrapper.visibility == View.INVISIBLE
+                ) {
+                    pinyinBarRecyclerView.visibility = View.VISIBLE
+                    pinyinRowWrapper.visibility = View.VISIBLE
+                }
             }
         })
 
@@ -1297,9 +1236,5 @@ class CandidatesView(
 
     companion object {
         private const val T9_BULK_FILTER_LIMIT = 80
-        private const val PINYIN_ROW_ANIMATION_DURATION_MS = 180L
-        private const val PINYIN_CONTENT_REVEAL_OFFSET_DP = 4
-        private const val PINYIN_CONTENT_REVEAL_START_FRACTION = 0.12f
-        private val PINYIN_ROW_INTERPOLATOR = AccelerateDecelerateInterpolator()
     }
 }
