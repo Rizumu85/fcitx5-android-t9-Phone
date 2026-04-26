@@ -1,0 +1,14 @@
+# 0.1.3 - T9 Phone Input Polish
+
+## Highlights
+
+- Add InkBlack and InkPink themes, including dark variants
+- Improve Chinese T9 pinyin/Hanzi candidate behavior and remove candidate-area animations
+- Add clearer input-mode and English case feedback
+
+## Bug fixes
+
+- Fix stale pinyin/Hanzi candidate flashes while deleting or selecting pinyin filters
+- Keep Chinese T9 `1` from replacing active pinyin input with punctuation
+- Default Chinese input English text back to half-width while still allowing manual full-width input
+- Make physical Delete hide the input method when the editor is empty

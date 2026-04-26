@@ -59,6 +59,13 @@ Use 39% as the default regular virtual keyboard height in portrait orientation.
 Keep the existing landscape default and the separate T9 keyboard height defaults
 unchanged.
 
+## Release Version Design
+
+Keep the existing versioning scheme in `Versions.kt`: bump the patch version
+name and increment `baseVersionCode` by one. Because ABI-specific version codes
+derive from `baseVersionCode * 10 + abiId`, also add the matching highest-code
+Play release notes file for the new release.
+
 ## Pending Physical-Key Behavior Design
 
 For the physical Delete key, add an empty-editor guard before normal backspace

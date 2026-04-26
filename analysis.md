@@ -56,6 +56,12 @@ focus.
 
 ## Pending Physical-Key Requests
 
+- Release follow-up: bump the app version after the T9/visual theme batch. The
+  current source baseline is `baseVersionName = "0.1.2"` and
+  `baseVersionCode = 10`; version codes are calculated as
+  `baseVersionCode * 10 + abiId`, so the latest existing Play release note file
+  is `104.txt`. The next patch release should use `0.1.3`,
+  `baseVersionCode = 11`, and `114.txt` release notes for the highest ABI code.
 - Follow-up keyboard preference request: change the default regular virtual
   keyboard portrait height from 40% to 39%. This is the non-T9
   `keyboard_height_percent` default; existing user preferences remain unchanged.

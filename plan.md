@@ -65,6 +65,9 @@ Rizum Guidelines are active for this project/thread until the user says otherwis
 - [x] Leave compile checks for this default/status tweak until debugging requires them or the user asks.
 - [x] Allow manual full-width toggles after the input-start default is restored.
 - [x] Leave compile checks for this fullwidth behavior correction until debugging requires them or the user asks.
+- [x] Bump base version name and base version code for the next patch release.
+- [x] Add matching Play release notes for the new ABI-derived version code.
+- [x] Leave compile checks for this version metadata update until the user asks.
 - [x] Document the pending Delete and mode-switch animation requests without implementing them.
 - [x] Decide that physical Delete on an empty editor should use the same exit-IME logic as the on-screen exit button.
 - [x] Design the empty-editor Delete guard around composition, pending punctuation, candidates, and normal text deletion.
