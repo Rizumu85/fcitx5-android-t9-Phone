@@ -6,7 +6,11 @@
 package org.fcitx.fcitx5.android.input
 
 import android.annotation.SuppressLint
+import android.content.Context
 import android.content.res.Configuration
+import android.graphics.Canvas
+import android.graphics.DashPathEffect
+import android.graphics.Paint
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.os.Build
@@ -20,6 +24,8 @@ import android.view.WindowInsets
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InlineSuggestionsResponse
 import android.widget.ImageView
+import android.widget.LinearLayout
+import android.widget.TextView
 import androidx.annotation.Keep
 import androidx.annotation.RequiresApi
 import androidx.core.view.updateLayoutParams
@@ -72,6 +78,31 @@ import splitties.views.dsl.core.withTheme
 import splitties.views.dsl.core.wrapContent
 import splitties.views.imageDrawable
 
+private class SelectionActionGuideView(
+    context: Context,
+    guideColor: Int
+) : View(context) {
+
+    private fun dp(value: Float): Float = value * resources.displayMetrics.density
+
+    private val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = guideColor
+        style = Paint.Style.STROKE
+        strokeWidth = dp(1.5f)
+        pathEffect = DashPathEffect(floatArrayOf(dp(5f), dp(5f)), 0f)
+    }
+
+    override fun onDraw(canvas: Canvas) {
+        super.onDraw(canvas)
+        val cx = width / 2f
+        val cy = height / 2f
+        val padding = dp(14f)
+        canvas.drawLine(padding, cy, width - padding, cy, paint)
+        canvas.drawLine(cx, padding, cx, height - padding, paint)
+        canvas.drawCircle(cx, cy, (minOf(width, height) / 2f) - padding, paint)
+    }
+}
+
 @SuppressLint("ViewConstructor")
 class InputView(
     service: FcitxInputMethodService,
@@ -108,6 +139,187 @@ class InputView(
     private val modeSwitchIndicatorHideRunnable = Runnable {
         hideModeSwitchIndicator()
     }
+    private fun selectionActionHint(
+        label: String,
+        circular: Boolean = false,
+        typefaceStyle: Int = Typeface.BOLD
+    ) = view(::AutoScaleTextView) {
+        alpha = 0f
+        visibility = GONE
+        isClickable = false
+        isFocusable = false
+        gravity = Gravity.CENTER
+        minimumWidth = if (circular) dp(64) else dp(52)
+        minimumHeight = if (circular) dp(64) else dp(26)
+        setPadding(if (circular) 0 else dp(8), 0, if (circular) 0 else dp(8), 0)
+        setTextSize(TypedValue.COMPLEX_UNIT_DIP, if (circular) 24f else 18f)
+        InputUiFont.applyTo(this, typefaceStyle)
+        text = label
+        setTextColor(theme.accentKeyTextColor)
+        background = GradientDrawable().apply {
+            shape = GradientDrawable.RECTANGLE
+            cornerRadius = if (circular) dp(32f) else dp(3f)
+            setColor(theme.accentKeyBackgroundColor)
+        }
+        elevation = dp(8).toFloat()
+    }
+    private fun selectionActionVerticalHint(first: String, second: String) = view(::LinearLayout) {
+        alpha = 0f
+        visibility = GONE
+        isClickable = false
+        isFocusable = false
+        orientation = LinearLayout.VERTICAL
+        gravity = Gravity.CENTER
+        minimumWidth = dp(30)
+        minimumHeight = dp(58)
+        setPadding(dp(6), dp(6), dp(6), dp(6))
+        background = GradientDrawable().apply {
+            shape = GradientDrawable.RECTANGLE
+            cornerRadius = dp(3f)
+            setColor(theme.accentKeyBackgroundColor)
+        }
+        elevation = dp(8).toFloat()
+        listOf(first, second).forEach { label ->
+            addView(
+                TextView(context).apply {
+                    gravity = Gravity.CENTER
+                    includeFontPadding = false
+                    text = label
+                    setTextSize(TypedValue.COMPLEX_UNIT_DIP, 18f)
+                    setTextColor(theme.accentKeyTextColor)
+                    InputUiFont.applyTo(this, Typeface.BOLD)
+                },
+                LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                )
+            )
+        }
+    }
+    private val selectionActionAnchor = view(::View) {
+        isClickable = false
+        isFocusable = false
+        visibility = INVISIBLE
+    }
+    private val selectionActionGuide = SelectionActionGuideView(
+        context,
+        (theme.accentKeyBackgroundColor and 0x00ffffff) or 0x66000000
+    ).apply {
+        alpha = 0f
+        visibility = GONE
+        isClickable = false
+        isFocusable = false
+    }
+    private val selectionActionHintUp = selectionActionHint("复制")
+    private val selectionActionHintLeft = selectionActionVerticalHint("剪", "切")
+    private val selectionActionHintCenter = selectionActionHint(
+        "确认",
+        circular = true,
+        typefaceStyle = Typeface.NORMAL
+    )
+    private val selectionActionHintRight = selectionActionVerticalHint("粘", "贴")
+    private val selectionActionHintDown = selectionActionHint("删除")
+    private val selectionActionHints
+        get() = listOf(
+            selectionActionGuide,
+            selectionActionHintUp,
+            selectionActionHintLeft,
+            selectionActionHintCenter,
+            selectionActionHintRight,
+            selectionActionHintDown
+        )
+    private fun numberOperatorHintCell(primary: String, secondary: String) = LinearLayout(context).apply {
+        orientation = LinearLayout.VERTICAL
+        gravity = Gravity.CENTER
+        minimumWidth = dp(50)
+        minimumHeight = dp(42)
+        setPadding(dp(6), dp(4), dp(6), dp(4))
+        background = GradientDrawable().apply {
+            shape = GradientDrawable.RECTANGLE
+            cornerRadius = dp(3f)
+            setColor(theme.accentKeyBackgroundColor)
+        }
+        addView(
+            TextView(context).apply {
+                gravity = Gravity.CENTER
+                includeFontPadding = false
+                text = primary
+                setTextSize(TypedValue.COMPLEX_UNIT_DIP, 11f)
+                setTextColor(theme.accentKeyTextColor)
+                InputUiFont.applyTo(this, Typeface.NORMAL)
+            },
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+        )
+        addView(
+            TextView(context).apply {
+                gravity = Gravity.CENTER
+                includeFontPadding = false
+                text = secondary
+                setTextSize(TypedValue.COMPLEX_UNIT_DIP, 19f)
+                setTextColor(theme.accentKeyTextColor)
+                InputUiFont.applyTo(this, Typeface.BOLD)
+            },
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+        )
+    }
+    private fun numberOperatorHintRow(vararg cells: Pair<String, String>) = LinearLayout(context).apply {
+        orientation = LinearLayout.HORIZONTAL
+        gravity = Gravity.CENTER
+        cells.forEachIndexed { index, cell ->
+            addView(
+                numberOperatorHintCell(cell.first, cell.second),
+                LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                ).apply {
+                    if (index > 0) marginStart = dp(8)
+                }
+            )
+        }
+    }
+    private val numberOperatorHintPanel = LinearLayout(context).apply {
+        alpha = 0f
+        visibility = GONE
+        isClickable = false
+        isFocusable = false
+        orientation = LinearLayout.VERTICAL
+        gravity = Gravity.CENTER
+        listOf(
+            arrayOf("1" to "-", "2" to "+", "3" to "="),
+            arrayOf("4" to "π", "5" to "/", "6" to "≈"),
+            arrayOf("7" to "(", "8" to "%", "9" to ")"),
+            arrayOf("*" to "*", "0" to ".", "#" to "返回")
+        ).forEachIndexed { index, row ->
+            addView(
+                numberOperatorHintRow(*row),
+                LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                ).apply {
+                    if (index > 0) topMargin = dp(8)
+                }
+            )
+        }
+    }
+    private fun equalsChoiceCell(primary: String, secondary: String) =
+        numberOperatorHintCell(primary, secondary).apply {
+            minimumWidth = dp(76)
+            minimumHeight = dp(48)
+        }
+    private val numberEqualsChoicePanel = LinearLayout(context).apply {
+        alpha = 0f
+        visibility = GONE
+        isClickable = false
+        isFocusable = false
+        orientation = LinearLayout.HORIZONTAL
+        gravity = Gravity.CENTER
+    }
     private val modeSwitchIndicator = view(::AutoScaleTextView) {
         alpha = 0f
         visibility = GONE
@@ -124,7 +336,6 @@ class InputView(
             shape = GradientDrawable.RECTANGLE
             cornerRadius = dp(3f)
             setColor(theme.accentKeyBackgroundColor)
-            setStroke(dp(1), theme.keyShadowColor)
         }
         elevation = dp(8).toFloat()
     }
@@ -332,6 +543,46 @@ class InputView(
             centerVertically()
             centerHorizontally()
         })
+        add(selectionActionAnchor, lParams(dp(1), dp(1)) {
+            centerVertically()
+            centerHorizontally()
+        })
+        add(selectionActionGuide, lParams(dp(150), dp(150)) {
+            centerVertically()
+            centerHorizontally()
+        })
+        add(selectionActionHintUp, lParams(wrapContent, wrapContent) {
+            above(selectionActionAnchor)
+            centerHorizontally()
+            bottomMargin = dp(46)
+        })
+        add(selectionActionHintLeft, lParams(wrapContent, wrapContent) {
+            endToStartOf(selectionActionHintCenter)
+            centerVertically()
+            marginEnd = dp(14)
+        })
+        add(selectionActionHintCenter, lParams(dp(64), dp(64)) {
+            centerVertically()
+            centerHorizontally()
+        })
+        add(selectionActionHintRight, lParams(wrapContent, wrapContent) {
+            startToEndOf(selectionActionHintCenter)
+            centerVertically()
+            marginStart = dp(14)
+        })
+        add(selectionActionHintDown, lParams(wrapContent, wrapContent) {
+            below(selectionActionAnchor)
+            centerHorizontally()
+            topMargin = dp(46)
+        })
+        add(numberOperatorHintPanel, lParams(wrapContent, wrapContent) {
+            centerVertically()
+            centerHorizontally()
+        })
+        add(numberEqualsChoicePanel, lParams(wrapContent, wrapContent) {
+            centerVertically()
+            centerHorizontally()
+        })
 
         // 4. updateKeyboardSize() after all add() so layoutParams exist (avoids NPE / wrong height)
         updateKeyboardSize()
@@ -463,6 +714,88 @@ class InputView(
                 modeSwitchIndicatorHandler.postDelayed(modeSwitchIndicatorHideRunnable, 420L)
             }
             .start()
+    }
+
+    fun showSelectionActionHints() {
+        selectionActionHints.forEach { hint ->
+            hint.animate().cancel()
+            hint.visibility = VISIBLE
+            hint.alpha = 0f
+            hint.scaleX = 0.85f
+            hint.scaleY = 0.85f
+            hint.animate()
+                .alpha(1f)
+                .scaleX(1f)
+                .scaleY(1f)
+                .setDuration(80L)
+                .start()
+        }
+    }
+
+    fun hideSelectionActionHints() {
+        selectionActionHints.forEach { hint ->
+            hint.animate().cancel()
+            hint.animate()
+                .alpha(0f)
+                .scaleX(0.95f)
+                .scaleY(0.95f)
+                .setDuration(120L)
+                .withEndAction {
+                    hint.visibility = GONE
+                }
+                .start()
+        }
+    }
+
+    private fun showTransientPanel(panel: View) {
+        panel.animate().cancel()
+        panel.visibility = VISIBLE
+        panel.alpha = 0f
+        panel.scaleX = 0.9f
+        panel.scaleY = 0.9f
+        panel.animate()
+            .alpha(1f)
+            .scaleX(1f)
+            .scaleY(1f)
+            .setDuration(80L)
+            .start()
+    }
+
+    private fun hideTransientPanel(panel: View) {
+        panel.animate().cancel()
+        panel.animate()
+            .alpha(0f)
+            .scaleX(0.95f)
+            .scaleY(0.95f)
+            .setDuration(120L)
+            .withEndAction {
+                panel.visibility = GONE
+            }
+            .start()
+    }
+
+    fun showNumberOperatorHints() {
+        showTransientPanel(numberOperatorHintPanel)
+    }
+
+    fun hideNumberOperatorHints() {
+        hideTransientPanel(numberOperatorHintPanel)
+    }
+
+    fun showNumberEqualsChoice(prefix: String, result: String) {
+        numberEqualsChoicePanel.removeAllViews()
+        numberEqualsChoicePanel.addView(
+            equalsChoiceCell("确认", "$prefix$result"),
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+        )
+        showTransientPanel(numberEqualsChoicePanel)
+    }
+
+    fun hideNumberEqualsChoice() {
+        hideTransientPanel(numberEqualsChoicePanel)
     }
 
     private fun hideModeSwitchIndicator() {

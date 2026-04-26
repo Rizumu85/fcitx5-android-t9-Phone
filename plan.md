@@ -31,6 +31,95 @@ Rizum Guidelines are active for this project/thread until the user says otherwis
 - [x] Change the T9 top/bottom row ratio default to 82.
 - [x] Keep existing tap-Return pinyin commit behavior unchanged after the user correction.
 - [x] Run a narrow static check for the ratio default change.
+- [x] Document physical OK-key selection mode behavior.
+- [x] Add OK long-press entry for physical selection mode with T9 composition guards.
+- [x] Route Left/Right to Shift+Left/Shift+Right while physical selection mode is active.
+- [x] Run a narrow static and Kotlin compile check for the selection-mode change.
+- [x] Add mode-badge feedback when entering and exiting physical selection mode.
+- [x] Replace Shift+Arrow selection extension with explicit anchor/focus selection.
+- [x] Prevent collapsed-selection deletion while physical selection mode is active.
+- [x] Recheck Kotlin after the physical selection-mode bug fixes.
+- [x] Remove the exit badge while leaving Android's native selection toolbar available.
+- [x] Suppress collapsed-selection deletion for physical-selection-created ranges after mode exit.
+- [x] Recheck Kotlin after the selection replacement/delete fix.
+- [x] Document the updated physical selection-mode exit and Up/Down behavior.
+- [x] Let physical Up/Down extend selection to the editor's native vertical cursor destination.
+- [x] Exit physical selection mode with an exit badge before non-selection keys continue through normal input.
+- [x] Run a narrow static and Kotlin compile check for the selection-mode update.
+- [x] Request Android native selection mode when physical OK selection mode starts.
+- [x] Restrict collapsed-selection deletion to recent physical text replacement keys.
+- [x] Run a narrow static and Kotlin compile check for native-selection/touch-collapse fixes.
+- [x] Remove the ineffective Android native selection-mode request.
+- [x] Rename physical selection badges to entry/exit labels and show exit on OK.
+- [x] Run a narrow static and Kotlin compile check for selection badge cleanup.
+- [x] Add a physical selection action hint panel using the mode badge style.
+- [x] Route selection action keys to copy, cut, paste, select all, and delete after OK exit.
+- [x] Keep touch-created selections out of the broad physical delete workaround.
+- [x] Run a narrow static and Kotlin compile check for the selection action panel.
+- [x] Keep the physical selection action panel visible until the next operation.
+- [x] Add a centered round OK hint and vertical cut/paste hints.
+- [x] Replace select-all with Down=delete and make Back/Delete cancel selection.
+- [x] Run a narrow static and Kotlin compile check for the revised selection panel.
+- [x] Make cut/paste side hints truly vertical and farther from OK.
+- [x] Enlarge the center OK circle.
+- [x] Run a narrow static and Kotlin compile check for the selection panel visual tuning.
+- [x] Replace cut/paste `AutoScaleTextView` newline labels with stacked TextView containers.
+- [x] Recheck static diff and Kotlin compile after the stacked-label fix.
+- [x] Increase spacing around all physical selection action hints.
+- [x] Run a narrow static check for the spacing tweak.
+- [x] Re-anchor cut/paste spacing to the OK circle with start/end margins.
+- [x] Run a narrow static check for the side-hint spacing fix.
+- [x] Reduce side action spacing to match the top/bottom rhythm.
+- [x] Suppress the exit-selection badge when the action panel opens.
+- [x] Run a narrow static check for the action panel polish.
+- [x] Remove outlines from transient badge-style overlays.
+- [x] Enlarge the center OK label inside the selection action circle.
+- [x] Run a narrow static check for the badge visual polish.
+- [x] Change the center action label from `OK` to `Ok`.
+- [x] Run a narrow static check for the label update.
+- [x] Enlarge the center Ok circle.
+- [x] Run a narrow static check for the Ok circle size tweak.
+- [x] Add a dashed cross/circle guide behind the physical selection action hints.
+- [x] Run a narrow static and Kotlin compile check for the guide layer.
+- [x] Shrink the dashed guide to align with the action hint centers.
+- [x] Run a narrow static check for the guide sizing tweak.
+- [x] Render the center confirmation label with regular font weight.
+- [x] Run a narrow static check for the center label weight tweak.
+- [x] Document the number-mode operator long-press design and assumptions.
+- [x] Add a number-mode operator hint panel shaped like the physical keypad.
+- [x] Map number-mode digit long-presses to calculator operators.
+- [x] Add equals-result choice handling with literal-equals fallback.
+- [x] Run narrow static and Kotlin compile checks for the number operator feature.
+- [x] Remove duplicate `*`/`.` operator mappings and update the cheat sheet.
+- [x] Keep the operator cheat sheet open after long-press `*` by ignoring repeat downs.
+- [x] Run a narrow static check for the operator mapping/panel fix.
+- [x] Show literal `*` on the operator cheat sheet's star key.
+- [x] Commit literal `=` before showing the optional calculation result.
+- [x] Make result return only close the result choice, and OK commit only the result suffix.
+- [x] Run narrow static and Kotlin compile checks for equals-flow correction.
+- [x] Ignore repeat key-downs while the equals result choice is open.
+- [x] Change equals result action label from `Ok` to `确认`.
+- [x] Move the equals result `返回` label to the lower small position.
+- [x] Run narrow static and Kotlin compile checks for the result choice polish.
+- [x] Remove the visible return hint from the equals result choice.
+- [x] Run a narrow static check for the result choice simplification.
+- [x] Let `*` commit its visible literal while the number operator hint panel is open.
+- [x] Replace the unsupported `6=^` number operator mapping with parser-supported `6=*`.
+- [x] Ignore repeat key-downs in the physical selection action panel.
+- [x] Run narrow static and Kotlin syntax checks for the review follow-ups.
+- [x] Adjust number-mode long-press mappings to `2=+`, `4=<`, `5=/`, `6=>`, and `0=.`.
+- [x] Run a narrow static check for the operator remap.
+- [x] Replace number-mode `4=<` with `4=π` and `6=>` with `6≈`.
+- [x] Run a narrow static check for the operator symbol tuning.
+- [x] Add `π` support to the equals-result number parser.
+- [x] Support implicit multiplication for adjacent parser factors such as `2π`.
+- [x] Run narrow static and Kotlin syntax checks for the parser update.
+- [x] Add `≈` as an approximate-result trigger using the existing result choice flow.
+- [x] Format approximate results with at most two decimal places.
+- [x] Run narrow static and Kotlin syntax checks for the approximate-result update.
+- [x] Consolidate number-mode transient panel state into one state machine.
+- [x] Centralize number-mode panel key and Back handling.
+- [x] Run narrow static and Kotlin syntax checks for the number-mode consolidation.
 - [x] Document the two requested mockup-based built-in themes.
 - [x] Add the two theme presets in `ThemePreset.kt`.
 - [x] Register the new presets in `ThemeManager.BuiltinThemes`.

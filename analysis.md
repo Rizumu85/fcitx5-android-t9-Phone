@@ -2,7 +2,165 @@
 
 ## Current Task
 
-Adjust the T9 top/bottom row height ratio default.
+Review and tighten the completed global feature set before final consolidation.
+
+## Global Feature Review Follow-Up
+
+- The number operator hint panel displays `*` on the physical `*` key, so the
+  active panel must let a short `*` press commit `*` instead of treating it as a
+  dismiss-only key. `#`, Back/Delete, and OK remain dismiss controls.
+- The number operator mapping should not advertise an operator that the local
+  expression parser cannot evaluate. Change the `6` long-press mapping from
+  unsupported exponent `^` to parser-supported multiplication `*`.
+- The physical selection action panel should ignore repeat key-down events just
+  like the number operator and equals-result panels. This prevents a held
+  direction/delete key from executing once, closing the panel, and then leaking
+  later repeats into the normal input pipeline.
+- Follow-up operator layout adjustment: keep the feature unintegrated for now,
+  and change the displayed/committed number-mode long-press symbols to
+  `2=+`, `4=<`, `5=/`, `6=>`, and `0=.`.
+- Follow-up operator tuning: comparison symbols are not useful enough for the
+  calculator-style layer. Change `4` to `π` and `6` to `≈` as direct literal
+  symbols.
+- Follow-up parser request: connect `π` to the equals-result calculator so
+  expressions such as `π=`, `2π=`, and `π/2=` can be evaluated. Keep `≈` as a
+  literal symbol because it is not an operation or equals trigger.
+- Follow-up approximate-result request: connect `≈` to the same optional result
+  flow as `=`, but format the offered result with at most two decimal places.
+  The literal `≈` should still be committed first, and confirmation should only
+  append the formatted result after it.
+- Number-mode consolidation review: the operator cheat sheet and result choice
+  are mutually exclusive transient panels. Model them as one numeric panel state
+  instead of independent booleans so pre-IME Back, key-down priority, dismissal,
+  and repeat handling stay centralized.
+
+## Chinese T9 Cleanup Follow-Up
+
+- The current Chinese T9 behavior is accepted by user testing and should not be
+  behaviorally redesigned.
+- Start cleanup with one independently testable piece: encapsulate pending local
+  punctuation state. The existing four fields (`set`, `index`, `text`, and
+  deferred one-key flag) always move together and can be grouped without
+  changing Rime composition, pinyin filtering, or Hanzi preview logic.
+
+## Physical OK Selection Mode Request
+
+- Long-pressing the physical OK key should enter a text selection mode.
+- While selection mode is active, physical Left/Right should extend the editor
+  selection left or right, rather than only moving the cursor.
+- Follow-up bug: using Shift+Left/Shift+Right lets the existing collapsed
+  selection delete workaround fire when the user reverses direction back to the
+  anchor, which can randomly delete one character. Track an explicit anchor and
+  moving edge instead.
+- Follow-up bug: long-press OK can leak repeated OK/space events if the
+  long-press repeat is not fully consumed. Once OK is deferred for long-press
+  detection, all repeat events and the matching key-up must be consumed.
+- Show the same transient badge style used by mode switching when entering and
+  leaving selection mode. Use explicit labels: `进入选区` on entry and `退出选区`
+  on exit, including OK-confirmed exits and automatic exits before normal input.
+- Follow-up request: physical Up/Down should also extend the selection to the
+  editor's native vertical cursor destination. Unlike Left/Right, vertical
+  movement depends on the target editor's layout, so the IME should delegate
+  vertical selection extension to Shift+Up/Shift+Down instead of guessing text
+  offsets locally.
+- Android's copy/paste floating toolbar is owned by the target editor, not the
+  input method. The IME can preserve the selected range and avoid deleting it,
+  but there is no reliable public IME API to force every editor to show its
+  native toolbar.
+- Native selection-mode follow-up: trying Android's `startSelectingText`
+  context menu action did not show the native selection handles/toolbars in the
+  user's test path. Remove that best-effort request and keep this as an
+  IME-owned physical selection mode.
+- Since native selection toolbar is unreliable, show an IME-owned selection
+  action hint panel after leaving physical selection mode with OK. Reuse the
+  existing mode badge visual language, keep it visible until the next physical
+  action, and place labels according to physical key direction:
+  Up=copy, Left=cut, Right=paste, Down=delete, and center=OK/close.
+  Back/Delete should cancel the selected range and close the panel without an
+  extra action badge.
+- Visual follow-up: the cut/paste hints still render horizontally or too close
+  to the center OK on device. Force those side hints into a narrow stacked
+  vertical shape, increase the horizontal spacing, and make the center OK circle
+  larger.
+- Implementation finding: `AutoScaleTextView` draws text with a single
+  `Canvas.drawText()` call and does not support newline layout. The side action
+  hints must use a real vertical container with one `TextView` per character.
+- Visual follow-up: the action hints still feel crowded around the OK center.
+  Spread copy/delete vertically and cut/paste horizontally farther from the
+  center while keeping the same physical-key mapping.
+- Follow-up finding: increasing `leftMargin`/`rightMargin` on constraints to
+  the tiny center anchor did not move the side hints on device. Constrain the
+  side hints directly to the OK circle and use start/end margins instead.
+- Visual follow-up: once the action panel appears, do not also show the
+  `退出选区` badge. The panel itself communicates that selection mode ended.
+  Side hint spacing should be closer to the copy/delete spacing instead of
+  feeling overly far away.
+- Visual follow-up: remove outlines from this family of transient badge/hint
+  overlays, and make the center Ok label fill its circle more.
+- Text follow-up: display the center action label as `Ok`, not all-caps `OK`.
+- Visual follow-up: make the center Ok circle larger again while keeping the
+  label proportionally readable.
+- Visual experiment: add a dashed cross and dashed circle behind the physical
+  selection action buttons to visually connect the directional hints with the
+  center Ok key. Keep it behind the buttons and low contrast so it reads as a
+  guide, not another action.
+- Visual follow-up: shrink the dashed guide so the circle/cross sits around the
+  middle of each action hint instead of reading as a large background graphic.
+- Visual follow-up: keep the center confirmation label at the current size, but
+  render it with the selected font's regular weight instead of bold.
+- Recommendation: keep touch-created Android selections as touch-driven
+  interactions. Re-enabling broad physical-key deletion for touch selections
+  would recreate the accidental blank-tap deletion bug. The new physical action
+  panel should be scoped to ranges created by the IME's physical selection mode.
+- Touch-selection bug report: after selecting text by touch, tapping blank
+  editor space can delete the selected text. This points at
+  `deleteCollapsedSelectionIfNeeded()` being too broad: it treats any selected
+  range collapsing as an opportunity to delete. That workaround should only run
+  immediately after a physical text-producing key that may need to replace a
+  selection, not after unrelated touch-driven selection collapse.
+- Follow-up bug: after exiting selection mode, arrows, OK, or Chinese-mode
+  commits can delete the selected text because the collapsed-selection delete
+  workaround still treats this IME-created selection as disposable. Keep a
+  separate marker for physical-selection-created ranges and suppress that
+  workaround until the selection collapses or is replaced.
+- Do not steal OK from active Chinese T9 composition, pending punctuation,
+  pending English multi-tap, or visible T9 candidate focus confirmation.
+  Selection mode is for normal editor text navigation.
+- A short OK press while physical selection mode is active should exit the mode
+  and consume the matching key-up so it does not insert a space or confirm a
+  candidate accidentally.
+
+## Number Mode Operator Long-Press Request
+
+- In T9 number mode, digit long-presses should commit common calculator
+  operators instead of repeating the digit.
+- Initial mapping, based on the hardware hint and calculator usefulness:
+  `1=-`, `2=/`, `3==`, `4=+`, `5=.`, `6=*`, `7=(`, `8=%`, `9=)`, `0=_`;
+  this can be tuned after device testing. `*` is already available as the
+  literal star key in number mode, so it should not duplicate a digit mapping.
+- Bug report: the operator cheat sheet flashes away after long-press `*`.
+  Root cause is long-press repeat events: after the first repeat opens the
+  panel, later repeats are routed into the panel and interpreted as `*` close
+  commands. Operator panels should ignore repeat key-downs.
+- Follow-up: the cheat sheet should show `*` on the `*` key instead of
+  `返回`; `*` remains the literal star in number mode.
+- Follow-up: committing `=` should first insert the literal equals sign, then
+  offer `=result` as an optional next commit. Returning should only close the
+  result choice because the `=` is already in the editor. Confirming should
+  commit only the result text after the already-inserted `=`.
+- Follow-up bug: long-press `3` sometimes opens the `=` result choice and then
+  closes it immediately. The result-choice panel should also ignore long-press
+  repeat key-downs from the key that opened it.
+- Follow-up UI: in the result choice, use `确认` instead of `Ok`, and render
+  `返回` as the lower small label instead of the upper small label.
+- Follow-up UI: remove the visible `返回` hint from the equals result choice;
+  users can rely on Back/Delete to dismiss it.
+- Long-press `*` in number mode should show an IME-owned physical-key layout
+  hint panel. While this panel is visible, a short digit press should commit the
+  shown operator directly. Back/Delete/OK should leave the panel.
+- When committing `=`, if a calculable expression exists before the cursor,
+  show a small choice panel. OK commits the calculated result, while Back/Delete
+  returns without calculating and commits literal `=`.
 
 ## T9 Candidate Layout Request
 

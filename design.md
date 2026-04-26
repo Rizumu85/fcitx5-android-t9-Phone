@@ -8,7 +8,118 @@ controls, and a readable keyboard surface.
 
 ## Current Task Design
 
-Set the T9 top/bottom row ratio default to 82.
+Add physical OK-key selection mode and keep the T9 top/bottom row ratio default
+at 82.
+
+## Physical OK Selection Design
+
+Use physical OK long-press detection from repeated `KEYCODE_DPAD_CENTER` or
+`KEYCODE_ENTER` down events. When the long press is detected in a plain editor
+state, set a local `physicalSelectionMode` flag and consume the event. Keep the
+feature IME-owned; the attempted Android-native `startSelectingText` request did
+not reliably surface native handles/toolbars.
+
+While `physicalSelectionMode` is active, intercept physical Left/Right down
+events and update `InputConnection.setSelection()` from a stored anchor and a
+moving focus edge. This avoids the app's collapsed-selection delete workaround
+that can trigger when Shift+Arrow collapses a selection back to the original
+cursor position. For Up/Down, delegate to Shift+Up/Shift+Down because only the
+target editor knows the rendered line layout and vertical cursor destination.
+
+Keep the feature out of active T9 composition and candidate states. Short OK
+while the mode is active exits selection mode. If any non-selection input key is
+pressed after selecting text, leave selection mode first, show the existing mode
+badge with an exit label, and then pass that key to the normal input pipeline so
+the editor can replace the selected text or handle the command normally.
+Preserve the selected range on exit so editors that support Android's native
+selection toolbar can show it; the IME cannot force that toolbar in every app.
+Use explicit badge labels: `进入选区` for entry and `退出选区` for all exit paths.
+When the user exits physical selection mode with OK while a selection remains,
+show an IME-owned selection action hint panel. The panel uses the same badge
+styling as mode feedback but lays out action labels by physical key position:
+Up=`复制`, Left=`剪切`, Right=`粘贴`, Down=`删除`, and center=`Ok`.
+The next matching physical key performs the corresponding
+`performContextMenuAction()` or local delete operation. Copy, cut, paste, and
+delete close the panel after action. OK closes the panel. Back/Delete cancels
+the selected range and closes the panel without showing another action badge.
+The panel should stay visible indefinitely until one of those next actions,
+rather than timing out. Render the center OK as a round key-like badge, and show
+cut/paste as vertical labels around that center OK.
+Force the cut/paste side hints into narrow stacked labels so they cannot render
+as horizontal text on devices with different font metrics. Leave more space
+between the side hints and the center OK, and size the OK circle large enough to
+read as the visual center of the physical-key cluster.
+Do not use `AutoScaleTextView` newline text for those side hints; render each
+character in a vertical container so the layout is genuinely stacked.
+Keep generous spacing between the center OK and all four surrounding action
+hints so the cluster reads like physical keys rather than one crowded popup.
+For horizontal spacing, constrain cut/paste directly to the OK circle and use
+start/end margins; avoid relying on left/right margins against the invisible
+anchor.
+When OK exit will show the action panel, suppress the separate `退出选区` badge
+so the overlay has only one message. Keep side spacing visually comparable to
+the top/bottom copy/delete spacing.
+Transient badge-style overlays should use filled shapes without stroke outlines.
+The center Ok circle should use a larger label so the text fills the circle
+more like a physical key cap.
+The center Ok circle should be visually prominent enough to read as the main
+cluster anchor.
+Add an optional-looking guide layer behind the action hints: a dashed cross
+through the center and a dashed circle around the cluster. It should share the
+accent color at low opacity and sit below the action badges in z-order.
+Size the guide to the actual action cluster, with the dashed circle passing
+near the center of the four surrounding action hints.
+Use the same selected IME font for the center confirmation label, but apply the
+regular weight so it looks lighter than the surrounding action hints.
+
+Track physical-selection-created ranges separately from the transient mode flag.
+The collapsed-selection delete workaround must ignore those ranges even after
+the user exits selection mode, otherwise normal arrows or replacement commits
+can delete the selected text after the fact.
+
+Scope the collapsed-selection delete workaround to a recent physical
+text-producing key. Touching the editor to cancel or move a selection should
+only collapse the range; it should never be interpreted as a delete request.
+Do not make physical Delete operate on arbitrary touch-created Android
+selections through the collapsed-selection workaround. Touch selections stay in
+the touch interaction model, while the physical action panel handles
+physical-mode selections explicitly.
+
+## Number Operator Design
+
+Keep the feature scoped to `T9InputMode.NUMBER`. Short digit presses continue to
+commit digits. Long-press digit actions commit the mapped operator symbol. A
+long-press on `*` opens a physical-key-shaped operator cheat sheet, using the
+same filled badge style as the selection action panel. While the cheat sheet is
+open, short digit presses commit the shown operator and close the sheet. The
+physical `*` key also commits the shown literal `*`; Back, Delete, OK, and `#`
+close it without committing.
+Ignore repeat key-downs while the cheat sheet is open so the long-press that
+opened it cannot immediately close it.
+Use the current physical-key hint layout requested by the user:
+`1=-`, `2=+`, `3==`, `4=π`, `5=/`, `6≈`, `7=(`, `8=%`, `9=)`, `0=.`,
+and `*=*`. Non-parser symbols are inserted literally and are not part of the
+equals-expression parser.
+The parser treats `π` as `Math.PI` and accepts implicit multiplication between
+adjacent factors, so `2π` evaluates like `2*π`. Keep `≈` literal-only.
+Treat `≈` as an approximate-result trigger that mirrors the `=` flow: commit the
+literal `≈` first, then offer an optional `≈result` action. The approximate
+result uses the same parser but formats with at most two decimal places.
+Keep number-mode transient UI as a single state machine with three states:
+none, operator hint, and result choice. This avoids overlapping panels and keeps
+Back, repeat key-downs, OK confirmation, and fallback dismissal in one path.
+
+Treat `=` specially. Before committing it, inspect the numeric/operator suffix
+before the cursor and evaluate it with a tiny local parser for `+`, `-`, `*`,
+`/`, `%`, parentheses, and decimals. Always commit the literal `=` first. If
+parsing succeeds, show a result-choice overlay whose result cell displays
+`=result`; `确认` commits only the result portion after the already-inserted `=`,
+while Back/Delete only closes the overlay. If parsing fails, committing `=` is
+the whole action. The result-choice overlay should ignore repeat key-downs from
+the long-press that opened it. Render `返回` as the lower small label so it does
+not compete with the result action label.
+If the result-choice overlay is visually crowded, omit the visible return hint
+entirely while preserving Back/Delete dismissal behavior.
 
 ## T9 Candidate Layout Design
 
@@ -209,6 +320,11 @@ preview and commit work correctly across pages.
 When local punctuation is pending, consume DPAD arrows and OK even if the
 candidate page cannot move further. Boundary navigation should be a no-op inside
 the input method, not a cursor movement in the target editor.
+
+Keep pending local punctuation as a small grouped state inside the service. The
+state owns the active punctuation set, highlighted index, visible punctuation
+text, and deferred short-`1` flag. This keeps punctuation cleanup local while
+leaving the larger Chinese T9/Rime composition model untouched.
 
 ## T9 Pinyin Design
 

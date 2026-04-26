@@ -288,6 +288,22 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
         t9CandidateFocus = T9CandidateFocus.BOTTOM
     }
 
+    private fun resetPhysicalSelectionState() {
+        physicalSelectionMode = false
+        pendingPhysicalSelectionOkKeyCode = null
+        physicalSelectionOkLongPressTriggered = false
+        physicalSelectionAnchor = -1
+        physicalSelectionFocus = -1
+        physicalSelectionRangeActive = false
+        physicalSelectionActionPanelActive = false
+        inputView?.hideSelectionActionHints()
+        numberTransientPanel = NumberTransientPanel.NONE
+        inputView?.hideNumberOperatorHints()
+        inputView?.hideNumberEqualsChoice()
+        pendingNumberEqualsResult = null
+        lastSelectionReplacementKeyUptime = 0L
+    }
+
     private var cursorUpdateIndex: Int = 0
 
     private var highlightColor: Int = 0x66008577 // material_deep_teal_500 with alpha 0.4
@@ -670,6 +686,9 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
 
     fun commitText(text: String, cursor: Int = -1) {
         val ic = currentInputConnection ?: return
+        if (physicalSelectionMode) {
+            exitPhysicalSelectionMode(showBadge = true)
+        }
         // when composing text equals commit content, finish composing text as-is
         if (composing.isNotEmpty() && composingText.toString() == text) {
             val c = if (cursor == -1) text.length else cursor
@@ -741,6 +760,7 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
         val lastSelection = selection.latest
         if (lastSelection.isEmpty()) return false
         val ic = currentInputConnection ?: return false
+        physicalSelectionRangeActive = false
         selection.predict(lastSelection.start)
         ic.commitText("", 1)
         lastExplicitSelectionDeleteUptime = SystemClock.uptimeMillis()
@@ -759,6 +779,7 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
     private var selectionPreImeBackConsumed = false
     private var lastEditorTouchUptime = 0L
     private var lastExplicitSelectionDeleteUptime = 0L
+    private var lastSelectionReplacementKeyUptime = 0L
     private var deletingCollapsedSelection = false
 
     fun handlePreImeKeyEvent(event: KeyEvent): Boolean {
@@ -768,6 +789,17 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
             return true
         }
         if (event.action != KeyEvent.ACTION_DOWN || event.repeatCount != 0) return false
+
+        if (numberTransientPanel != NumberTransientPanel.NONE) {
+            dismissNumberTransientPanel()
+            selectionPreImeBackConsumed = true
+            return true
+        }
+        if (physicalSelectionActionPanelActive) {
+            cancelPhysicalSelectionActionPanelSelection()
+            selectionPreImeBackConsumed = true
+            return true
+        }
 
         val consumed = deleteSelectionIfAny()
         selectionPreImeBackConsumed = consumed
@@ -796,10 +828,14 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
         newSelEnd: Int
     ): Boolean {
         if (deletingCollapsedSelection) return false
+        if (physicalSelectionMode || physicalSelectionRangeActive) return false
         if (!t9InputModeEnabled || inputDeviceMgr.isVirtualKeyboard) return false
         if (oldSelStart == oldSelEnd || newSelStart != newSelEnd) return false
 
         val now = SystemClock.uptimeMillis()
+        if (now - lastSelectionReplacementKeyUptime > SELECTION_REPLACEMENT_KEY_WINDOW_MS) {
+            return false
+        }
         if (now - lastEditorTouchUptime < EDITOR_TOUCH_SELECTION_CANCEL_WINDOW_MS) return false
         if (now - lastExplicitSelectionDeleteUptime < EXPLICIT_SELECTION_DELETE_WINDOW_MS) return false
 
@@ -844,6 +880,216 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
         if (alt) sendUpKeyEvent(eventTime, KeyEvent.KEYCODE_ALT_LEFT)
     }
 
+    private fun isPhysicalSelectionOkKey(keyCode: Int): Boolean =
+        keyCode == KeyEvent.KEYCODE_DPAD_CENTER || keyCode == KeyEvent.KEYCODE_ENTER
+
+    private fun canUsePhysicalSelectionMode(): Boolean =
+        inputDeviceMgr.isInInputMode &&
+            currentInputConnection != null &&
+            composing.isEmpty() &&
+            !hasT9CompositionState() &&
+            t9PendingPunctuationText == null &&
+            multiTapPendingChar == null
+
+    private fun performDeferredPhysicalOkShortPress(keyCode: Int) {
+        when (keyCode) {
+            KeyEvent.KEYCODE_DPAD_CENTER -> sendDownUpKeyEvents(KeyEvent.KEYCODE_SPACE)
+            KeyEvent.KEYCODE_ENTER -> handleReturnKey()
+        }
+    }
+
+    private fun enterPhysicalSelectionMode() {
+        val cursor = selection.latest.end.coerceAtLeast(0)
+        physicalSelectionMode = true
+        physicalSelectionAnchor = cursor
+        physicalSelectionFocus = cursor
+        physicalSelectionActionPanelActive = false
+        inputView?.hideSelectionActionHints()
+        inputView?.showModeIndicatorBadge("进入选区")
+    }
+
+    private fun exitPhysicalSelectionMode(showBadge: Boolean = false) {
+        if (!physicalSelectionMode &&
+            physicalSelectionAnchor < 0 &&
+            physicalSelectionFocus < 0
+        ) {
+            return
+        }
+        physicalSelectionMode = false
+        pendingPhysicalSelectionOkKeyCode = null
+        physicalSelectionOkLongPressTriggered = false
+        physicalSelectionAnchor = -1
+        physicalSelectionFocus = -1
+        if (showBadge) {
+            inputView?.showModeIndicatorBadge("退出选区")
+        }
+    }
+
+    private fun showPhysicalSelectionActionPanel() {
+        if (currentInputSelection.isEmpty()) return
+        physicalSelectionActionPanelActive = true
+        inputView?.showSelectionActionHints()
+    }
+
+    private fun dismissPhysicalSelectionActionPanel() {
+        if (!physicalSelectionActionPanelActive) return
+        physicalSelectionActionPanelActive = false
+        inputView?.hideSelectionActionHints()
+    }
+
+    private fun performPhysicalSelectionContextAction(action: Int, label: String) {
+        dismissPhysicalSelectionActionPanel()
+        currentInputConnection?.performContextMenuAction(action)
+        inputView?.showModeIndicatorBadge(label)
+    }
+
+    private fun performPhysicalSelectionDeleteAction() {
+        dismissPhysicalSelectionActionPanel()
+        deleteSelectionIfAny()
+        inputView?.showModeIndicatorBadge("删除")
+    }
+
+    private fun cancelPhysicalSelectionActionPanelSelection() {
+        dismissPhysicalSelectionActionPanel()
+        cancelSelection()
+    }
+
+    private fun handlePhysicalSelectionActionPanelKeyDown(keyCode: Int, event: KeyEvent): Boolean {
+        if (!physicalSelectionActionPanelActive) return false
+        if (event.action != KeyEvent.ACTION_DOWN) return false
+        if (event.repeatCount > 0) return true
+        return when (keyCode) {
+            KeyEvent.KEYCODE_DPAD_UP -> {
+                performPhysicalSelectionContextAction(android.R.id.copy, "复制")
+                t9ConsumedNavigationKeyUp = keyCode
+                true
+            }
+            KeyEvent.KEYCODE_DPAD_LEFT -> {
+                performPhysicalSelectionContextAction(android.R.id.cut, "剪切")
+                t9ConsumedNavigationKeyUp = keyCode
+                true
+            }
+            KeyEvent.KEYCODE_DPAD_RIGHT -> {
+                performPhysicalSelectionContextAction(android.R.id.paste, "粘贴")
+                t9ConsumedNavigationKeyUp = keyCode
+                true
+            }
+            KeyEvent.KEYCODE_DPAD_DOWN -> {
+                performPhysicalSelectionDeleteAction()
+                t9ConsumedNavigationKeyUp = keyCode
+                true
+            }
+            KeyEvent.KEYCODE_DEL, KeyEvent.KEYCODE_BACK -> {
+                cancelPhysicalSelectionActionPanelSelection()
+                t9ConsumedNavigationKeyUp = keyCode
+                true
+            }
+            KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> {
+                dismissPhysicalSelectionActionPanel()
+                t9ConsumedNavigationKeyUp = keyCode
+                true
+            }
+            else -> {
+                dismissPhysicalSelectionActionPanel()
+                false
+            }
+        }
+    }
+
+    private fun movePhysicalSelectionFocus(delta: Int): Boolean {
+        val ic = currentInputConnection ?: return false
+        if (physicalSelectionAnchor < 0 || physicalSelectionFocus < 0) {
+            val cursor = selection.latest.end.coerceAtLeast(0)
+            physicalSelectionAnchor = cursor
+            physicalSelectionFocus = cursor
+        }
+        val extractedLength = ic.getExtractedText(ExtractedTextRequest(), 0)
+            ?.text
+            ?.length
+            ?: Int.MAX_VALUE
+        val nextFocus = (physicalSelectionFocus + delta)
+            .coerceAtLeast(0)
+            .coerceAtMost(extractedLength)
+        if (nextFocus == physicalSelectionFocus) return true
+        physicalSelectionFocus = nextFocus
+        val start = min(physicalSelectionAnchor, physicalSelectionFocus)
+        val end = max(physicalSelectionAnchor, physicalSelectionFocus)
+        physicalSelectionRangeActive = start != end
+        selection.predict(start, end)
+        ic.setSelection(start, end)
+        return true
+    }
+
+    private fun handlePhysicalSelectionModeKeyDown(keyCode: Int, event: KeyEvent): Boolean {
+        if (event.action != KeyEvent.ACTION_DOWN) return false
+        if (physicalSelectionMode) {
+            return when (keyCode) {
+                KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT -> {
+                    movePhysicalSelectionFocus(if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT) -1 else 1)
+                    t9ConsumedNavigationKeyUp = keyCode
+                    true
+                }
+                KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN -> {
+                    physicalSelectionRangeActive = true
+                    sendCombinationKeyEvents(keyCode, shift = true)
+                    t9ConsumedNavigationKeyUp = keyCode
+                    true
+                }
+                KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> {
+                    if (event.repeatCount == 0) {
+                        val showActions = currentInputSelection.isNotEmpty()
+                        exitPhysicalSelectionMode(showBadge = !showActions)
+                        showPhysicalSelectionActionPanel()
+                        t9ConsumedNavigationKeyUp = keyCode
+                    }
+                    true
+                }
+                KeyEvent.KEYCODE_DEL, KeyEvent.KEYCODE_BACK -> {
+                    exitPhysicalSelectionMode(showBadge = true)
+                    false
+                }
+                else -> {
+                    exitPhysicalSelectionMode(showBadge = true)
+                    false
+                }
+            }
+        }
+        if (!isPhysicalSelectionOkKey(keyCode) || !canUsePhysicalSelectionMode()) return false
+        if (event.repeatCount == 0) {
+            pendingPhysicalSelectionOkKeyCode = keyCode
+            physicalSelectionOkLongPressTriggered = false
+            return true
+        }
+        if (pendingPhysicalSelectionOkKeyCode == keyCode) {
+            if (event.repeatCount == 1) {
+                enterPhysicalSelectionMode()
+                physicalSelectionOkLongPressTriggered = true
+            }
+            return true
+        }
+        return false
+    }
+
+    private fun handlePhysicalSelectionModeKeyUp(keyCode: Int, event: KeyEvent): Boolean {
+        if (event.action != KeyEvent.ACTION_UP) return false
+        if (pendingPhysicalSelectionOkKeyCode != keyCode) return false
+        pendingPhysicalSelectionOkKeyCode = null
+        val wasLongPress = physicalSelectionOkLongPressTriggered
+        physicalSelectionOkLongPressTriggered = false
+        if (!wasLongPress) {
+            performDeferredPhysicalOkShortPress(keyCode)
+        }
+        return true
+    }
+
+    private fun markSelectionReplacementKeyIfNeeded(keyCode: Int, event: KeyEvent) {
+        if (event.action != KeyEvent.ACTION_DOWN || event.repeatCount != 0) return
+        if (inputDeviceMgr.isVirtualKeyboard) return
+        val producesText = event.unicodeChar != 0 || keyCode == KeyEvent.KEYCODE_SPACE
+        if (!producesText) return
+        lastSelectionReplacementKeyUptime = SystemClock.uptimeMillis()
+    }
+
     fun applySelectionOffset(offsetStart: Int, offsetEnd: Int = 0) {
         val lastSelection = selection.latest
         currentInputConnection?.also {
@@ -858,6 +1104,7 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
     fun cancelSelection() {
         val lastSelection = selection.latest
         if (lastSelection.isEmpty()) return
+        physicalSelectionRangeActive = false
         val end = lastSelection.end
         selection.predict(end)
         currentInputConnection?.setSelection(end, end)
@@ -1034,9 +1281,24 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
         CAPS
     }
 
+    private enum class NumberTransientPanel {
+        NONE,
+        OPERATOR_HINT,
+        RESULT_CHOICE
+    }
+
     private var t9EnglishCaseState = T9EnglishCaseState.OFF
     private var t9CandidateFocus = T9CandidateFocus.BOTTOM
     private var t9ConsumedNavigationKeyUp: Int? = null
+    private var physicalSelectionMode = false
+    private var physicalSelectionActionPanelActive = false
+    private var numberTransientPanel = NumberTransientPanel.NONE
+    private var pendingNumberEqualsResult: String? = null
+    private var pendingPhysicalSelectionOkKeyCode: Int? = null
+    private var physicalSelectionOkLongPressTriggered = false
+    private var physicalSelectionAnchor = -1
+    private var physicalSelectionFocus = -1
+    private var physicalSelectionRangeActive = false
 
     /**
      * Track if a long press action was triggered for # key.
@@ -1495,6 +1757,232 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
         }
     }
 
+    private val numberModeOperatorMap = mapOf(
+        KeyEvent.KEYCODE_1 to "-",
+        KeyEvent.KEYCODE_2 to "+",
+        KeyEvent.KEYCODE_3 to "=",
+        KeyEvent.KEYCODE_4 to "π",
+        KeyEvent.KEYCODE_5 to "/",
+        KeyEvent.KEYCODE_6 to "≈",
+        KeyEvent.KEYCODE_7 to "(",
+        KeyEvent.KEYCODE_8 to "%",
+        KeyEvent.KEYCODE_9 to ")",
+        KeyEvent.KEYCODE_0 to "."
+    )
+
+    private fun showNumberOperatorHintPanel() {
+        dismissNumberTransientPanel()
+        numberTransientPanel = NumberTransientPanel.OPERATOR_HINT
+        inputView?.showNumberOperatorHints()
+    }
+
+    private fun dismissNumberTransientPanel() {
+        val previousPanel = numberTransientPanel
+        numberTransientPanel = NumberTransientPanel.NONE
+        pendingNumberEqualsResult = null
+        when (previousPanel) {
+            NumberTransientPanel.OPERATOR_HINT -> inputView?.hideNumberOperatorHints()
+            NumberTransientPanel.RESULT_CHOICE -> inputView?.hideNumberEqualsChoice()
+            NumberTransientPanel.NONE -> Unit
+        }
+    }
+
+    private fun commitNumberEqualsResult() {
+        val result = pendingNumberEqualsResult ?: return dismissNumberTransientPanel()
+        dismissNumberTransientPanel()
+        currentInputConnection?.commitText(result, 1)
+    }
+
+    private fun commitNumberModeOperator(operator: String): Boolean {
+        dismissNumberTransientPanel()
+        if (operator != "=" && operator != "≈") {
+            currentInputConnection?.commitText(operator, 1)
+            return true
+        }
+        val result = evaluateNumberExpressionBeforeCursor(approximate = operator == "≈")
+        currentInputConnection?.commitText(operator, 1)
+        if (result != null) {
+            pendingNumberEqualsResult = result
+            numberTransientPanel = NumberTransientPanel.RESULT_CHOICE
+            inputView?.showNumberEqualsChoice(operator, result)
+        }
+        return true
+    }
+
+    private fun handleNumberTransientPanelKeyDown(keyCode: Int, event: KeyEvent): Boolean {
+        if (numberTransientPanel == NumberTransientPanel.NONE || event.action != KeyEvent.ACTION_DOWN) {
+            return false
+        }
+        if (event.repeatCount > 0) return true
+        return when (numberTransientPanel) {
+            NumberTransientPanel.OPERATOR_HINT -> handleNumberOperatorHintPanelKeyDown(keyCode)
+            NumberTransientPanel.RESULT_CHOICE -> handleNumberResultChoiceKeyDown(keyCode)
+            NumberTransientPanel.NONE -> false
+        }
+    }
+
+    private fun handleNumberOperatorHintPanelKeyDown(keyCode: Int): Boolean {
+        if (keyCode in KeyEvent.KEYCODE_0..KeyEvent.KEYCODE_9) {
+            val operator = numberModeOperatorMap[keyCode] ?: return true
+            commitNumberModeOperator(operator)
+            t9ConsumedNavigationKeyUp = keyCode
+            return true
+        }
+        if (keyCode == KeyEvent.KEYCODE_STAR) {
+            commitNumberModeOperator("*")
+            t9ConsumedNavigationKeyUp = keyCode
+            return true
+        }
+        return when (keyCode) {
+            KeyEvent.KEYCODE_POUND,
+            KeyEvent.KEYCODE_DPAD_CENTER,
+            KeyEvent.KEYCODE_ENTER,
+            KeyEvent.KEYCODE_DEL,
+            KeyEvent.KEYCODE_BACK -> {
+                dismissNumberTransientPanel()
+                t9ConsumedNavigationKeyUp = keyCode
+                true
+            }
+            else -> {
+                dismissNumberTransientPanel()
+                false
+            }
+        }
+    }
+
+    private fun handleNumberResultChoiceKeyDown(keyCode: Int): Boolean {
+        return when (keyCode) {
+            KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> {
+                commitNumberEqualsResult()
+                t9ConsumedNavigationKeyUp = keyCode
+                true
+            }
+            KeyEvent.KEYCODE_DEL, KeyEvent.KEYCODE_BACK -> {
+                dismissNumberTransientPanel()
+                t9ConsumedNavigationKeyUp = keyCode
+                true
+            }
+            else -> {
+                dismissNumberTransientPanel()
+                false
+            }
+        }
+    }
+
+    private fun evaluateNumberExpressionBeforeCursor(approximate: Boolean = false): String? {
+        val before = currentInputConnection
+            ?.getTextBeforeCursor(96, 0)
+            ?.toString()
+            ?: return null
+        val expression = before.takeLastWhile {
+            it.isDigit() || it in setOf('.', '+', '-', '*', '/', '%', '(', ')', ' ', 'π')
+        }.trim()
+        if (expression.isBlank() || expression.none { it.isDigit() || it == 'π' }) return null
+        return runCatching {
+            val value = NumberExpressionParser(expression).parse()
+            if (approximate) formatApproximateNumberResult(value) else formatNumberResult(value)
+        }.getOrNull()
+    }
+
+    private fun formatNumberResult(value: Double): String {
+        if (!value.isFinite()) return value.toString()
+        val long = value.toLong()
+        return if (value == long.toDouble()) long.toString() else {
+            String.format(java.util.Locale.US, "%.10f", value)
+                .trimEnd('0')
+                .trimEnd('.')
+        }
+    }
+
+    private fun formatApproximateNumberResult(value: Double): String {
+        if (!value.isFinite()) return value.toString()
+        val long = value.toLong()
+        return if (value == long.toDouble()) long.toString() else {
+            String.format(java.util.Locale.US, "%.2f", value)
+                .trimEnd('0')
+                .trimEnd('.')
+        }
+    }
+
+    private class NumberExpressionParser(private val text: String) {
+        private var index = 0
+
+        fun parse(): Double {
+            val value = parseExpression()
+            skipSpaces()
+            check(index == text.length)
+            return value
+        }
+
+        private fun parseExpression(): Double {
+            var value = parseTerm()
+            while (true) {
+                skipSpaces()
+                value = when {
+                    match('+') -> value + parseTerm()
+                    match('-') -> value - parseTerm()
+                    else -> return value
+                }
+            }
+        }
+
+        private fun parseTerm(): Double {
+            var value = parseFactor()
+            while (true) {
+                skipSpaces()
+                value = when {
+                    match('*') -> value * parseFactor()
+                    match('/') -> value / parseFactor()
+                    match('%') -> value % parseFactor()
+                    startsFactor() -> value * parseFactor()
+                    else -> return value
+                }
+            }
+        }
+
+        private fun parseFactor(): Double {
+            skipSpaces()
+            if (match('+')) return parseFactor()
+            if (match('-')) return -parseFactor()
+            if (match('(')) {
+                val value = parseExpression()
+                check(match(')'))
+                return value
+            }
+            if (match('π')) return Math.PI
+            return parseNumber()
+        }
+
+        private fun startsFactor(): Boolean {
+            skipSpaces()
+            if (index >= text.length) return false
+            return text[index].isDigit() || text[index] == '.' || text[index] == '(' || text[index] == 'π'
+        }
+
+        private fun parseNumber(): Double {
+            skipSpaces()
+            val start = index
+            while (index < text.length && (text[index].isDigit() || text[index] == '.')) {
+                index += 1
+            }
+            check(index > start)
+            return text.substring(start, index).toDouble()
+        }
+
+        private fun match(char: Char): Boolean {
+            skipSpaces()
+            if (index >= text.length || text[index] != char) return false
+            index += 1
+            return true
+        }
+
+        private fun skipSpaces() {
+            while (index < text.length && text[index].isWhitespace()) {
+                index += 1
+            }
+        }
+    }
+
     /**
      * Handle T9 special keys with state-aware behavior.
      * Returns true if the key was handled, false to pass through to default handling.
@@ -1607,7 +2095,10 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
                     }
                     T9InputMode.NUMBER -> {
                         if (event.repeatCount == 0) {
-                            commitLiteralT9Star(chineseState)
+                            digitLongPressFlags[keyCode] = false
+                        } else if (event.repeatCount == 1) {
+                            digitLongPressFlags[keyCode] = true
+                            showNumberOperatorHintPanel()
                         }
                         true
                     }
@@ -1640,10 +2131,13 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
 
         when (currentT9Mode) {
             T9InputMode.NUMBER -> {
-                // Number mode: always output digit directly
                 if (event.repeatCount == 0) {
-                    currentInputConnection?.commitText(digit.toString(), 1)
+                    digitLongPressFlags[keyCode] = false
                     return true
+                } else if (event.repeatCount == 1) {
+                    digitLongPressFlags[keyCode] = true
+                    val operator = numberModeOperatorMap[keyCode] ?: digit.toString()
+                    return commitNumberModeOperator(operator)
                 }
                 return true
             }
@@ -2559,6 +3053,13 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
     }
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {
+        if (handleNumberTransientPanelKeyDown(keyCode, event)) {
+            return true
+        }
+        if (handlePhysicalSelectionActionPanelKeyDown(keyCode, event)) {
+            return true
+        }
+
         if (event.action == KeyEvent.ACTION_DOWN &&
             t9PendingPunctuationText != null &&
             keyCode !in KeyEvent.KEYCODE_0..KeyEvent.KEYCODE_9 &&
@@ -2577,8 +3078,17 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
             commitPendingT9Punctuation()
         }
 
+        // When selection mode is already active, let it consume selection controls
+        // or exit before T9 special keys commit replacement text.
+        if (physicalSelectionMode && handlePhysicalSelectionModeKeyDown(keyCode, event)) {
+            return true
+        }
+
         // Handle T9 special keys first
         if (handleT9SpecialKey(keyCode, event)) {
+            return true
+        }
+        if (handlePhysicalSelectionModeKeyDown(keyCode, event)) {
             return true
         }
 
@@ -2640,6 +3150,7 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
             t9ConsumedNavigationKeyUp = keyCode
             return true
         }
+        markSelectionReplacementKeyIfNeeded(mappedKeyCode, mappedEvent)
         // request to show floating CandidatesView when pressing physical keyboard
         if (inputDeviceMgr.evaluateOnKeyDown(mappedEvent, this)) {
             postFcitxJob {
@@ -2651,6 +3162,9 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
     }
 
     override fun onKeyUp(keyCode: Int, event: KeyEvent): Boolean {
+        if (handlePhysicalSelectionModeKeyUp(keyCode, event)) {
+            return true
+        }
         if (t9ConsumedNavigationKeyUp == keyCode) {
             t9ConsumedNavigationKeyUp = null
             return true
@@ -2712,7 +3226,11 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
                 } else if (currentT9Mode == T9InputMode.CHINESE && chineseState == T9InputState.CHINESE_COMPOSING) {
                     false
                 } else if (currentT9Mode == T9InputMode.NUMBER) {
-                    true // Already handled in KEY_DOWN
+                    if (digitLongPressFlags[keyCode] != true) {
+                        currentInputConnection?.commitText("0", 1)
+                    }
+                    digitLongPressFlags[keyCode] = false
+                    true
                 } else {
                     if (digitLongPressFlags[keyCode] != true) {
                         commitMultiTapChar()
@@ -2748,7 +3266,13 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
                             true
                         }
                     }
-                    T9InputMode.NUMBER -> true // Already handled in KEY_DOWN
+                    T9InputMode.NUMBER -> {
+                        if (digitLongPressFlags[keyCode] != true) {
+                            currentInputConnection?.commitText((keyCode - KeyEvent.KEYCODE_0).toString(), 1)
+                        }
+                        digitLongPressFlags[keyCode] = false
+                        true
+                    }
                 }
             }
 
@@ -2790,6 +3314,8 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
                             digitLongPressFlags[keyCode] = false
                             true
                         } else {
+                            currentInputConnection?.commitText("1", 1)
+                            digitLongPressFlags[keyCode] = false
                             true
                         }
                     }
@@ -2810,7 +3336,13 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
                         togglePendingT9PunctuationSet()
                         true
                     }
-                    T9InputMode.NUMBER -> true
+                    T9InputMode.NUMBER -> {
+                        if (digitLongPressFlags[keyCode] != true) {
+                            commitLiteralT9Star(chineseState)
+                        }
+                        digitLongPressFlags[keyCode] = false
+                        true
+                    }
                 }
             }
 
@@ -2907,6 +3439,7 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
         selection.resetTo(attribute.initialSelStart, attribute.initialSelEnd)
         updateSelectionBackCallback(attribute.initialSelStart != attribute.initialSelEnd)
         resetComposingState()
+        resetPhysicalSelectionState()
         val flags = CapabilityFlags.fromEditorInfo(attribute)
         capabilityFlags = flags
         // EditorInfo may change between onStartInput and onStartInputView
@@ -2968,6 +3501,15 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
             return
         }
         handleCursorUpdate(newSelStart, newSelEnd, cursorUpdateIndex)
+        if (physicalSelectionMode && physicalSelectionAnchor >= 0) {
+            physicalSelectionFocus = when (physicalSelectionAnchor) {
+                newSelStart -> newSelEnd
+                newSelEnd -> newSelStart
+                else -> newSelEnd
+            }
+        } else if (physicalSelectionRangeActive && newSelStart == newSelEnd) {
+            physicalSelectionRangeActive = false
+        }
         updateSelectionBackCallback(newSelStart != newSelEnd)
         inputView?.updateSelection(newSelStart, newSelEnd)
     }
@@ -3304,5 +3846,6 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
         const val DeleteSurroundingFlag = "org.fcitx.fcitx5.android.DELETE_SURROUNDING"
         private const val EDITOR_TOUCH_SELECTION_CANCEL_WINDOW_MS = 300L
         private const val EXPLICIT_SELECTION_DELETE_WINDOW_MS = 500L
+        private const val SELECTION_REPLACEMENT_KEY_WINDOW_MS = 300L
     }
 }
