@@ -7,7 +7,13 @@ package org.fcitx.fcitx5.android.input
 
 import android.annotation.SuppressLint
 import android.content.res.Configuration
+import android.graphics.Typeface
+import android.graphics.drawable.GradientDrawable
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
+import android.util.TypedValue
+import android.view.Gravity
 import android.view.KeyEvent
 import android.view.View
 import android.view.WindowInsets
@@ -97,6 +103,29 @@ class InputView(
         // height as keyboardBottomPadding
         // bottomMargin as WindowInsets (Navigation Bar) offset
         setOnClickListener(placeholderOnClickListener)
+    }
+    private val modeSwitchIndicatorHandler = Handler(Looper.getMainLooper())
+    private val modeSwitchIndicatorHideRunnable = Runnable {
+        hideModeSwitchIndicator()
+    }
+    private val modeSwitchIndicator = view(::AutoScaleTextView) {
+        alpha = 0f
+        visibility = GONE
+        isClickable = false
+        isFocusable = false
+        gravity = Gravity.CENTER
+        minWidth = dp(88)
+        setPadding(dp(18), dp(10), dp(18), dp(10))
+        setTextSize(TypedValue.COMPLEX_UNIT_DIP, 24f)
+        setTypeface(typeface, Typeface.BOLD)
+        setTextColor(theme.accentKeyTextColor)
+        background = GradientDrawable().apply {
+            shape = GradientDrawable.RECTANGLE
+            cornerRadius = dp(10f)
+            setColor(theme.accentKeyBackgroundColor)
+            setStroke(dp(1), theme.keyShadowColor)
+        }
+        elevation = dp(8).toFloat()
     }
 
     private val scope = DynamicScope()
@@ -298,6 +327,10 @@ class InputView(
             centerVertically()
             centerHorizontally()
         })
+        add(modeSwitchIndicator, lParams(wrapContent, wrapContent) {
+            centerVertically()
+            centerHorizontally()
+        })
 
         // 4. updateKeyboardSize() after all add() so layoutParams exist (avoids NPE / wrong height)
         updateKeyboardSize()
@@ -412,12 +445,46 @@ class InputView(
         kawaiiBar.clearTransientState()
     }
 
+    fun showModeIndicatorBadge(label: String) {
+        modeSwitchIndicatorHandler.removeCallbacks(modeSwitchIndicatorHideRunnable)
+        modeSwitchIndicator.animate().cancel()
+        modeSwitchIndicator.text = label
+        modeSwitchIndicator.visibility = VISIBLE
+        modeSwitchIndicator.alpha = 0f
+        modeSwitchIndicator.scaleX = 0.85f
+        modeSwitchIndicator.scaleY = 0.85f
+        modeSwitchIndicator.animate()
+            .alpha(1f)
+            .scaleX(1f)
+            .scaleY(1f)
+            .setDuration(80L)
+            .withEndAction {
+                modeSwitchIndicatorHandler.postDelayed(modeSwitchIndicatorHideRunnable, 420L)
+            }
+            .start()
+    }
+
+    private fun hideModeSwitchIndicator() {
+        modeSwitchIndicator.animate().cancel()
+        modeSwitchIndicator.animate()
+            .alpha(0f)
+            .scaleX(0.95f)
+            .scaleY(0.95f)
+            .setDuration(120L)
+            .withEndAction {
+                modeSwitchIndicator.visibility = GONE
+            }
+            .start()
+    }
+
     @RequiresApi(Build.VERSION_CODES.R)
     fun handleInlineSuggestions(response: InlineSuggestionsResponse): Boolean {
         return kawaiiBar.handleInlineSuggestions(response)
     }
 
     override fun onDetachedFromWindow() {
+        modeSwitchIndicatorHandler.removeCallbacks(modeSwitchIndicatorHideRunnable)
+        modeSwitchIndicator.animate().cancel()
         keyboardWindow.onLayoutChanged = null
         windowManager.onActiveWindowChanged = null
         keyboardPrefs.unregisterOnChangeListener(onKeyboardSizeChangeListener)

@@ -2,9 +2,35 @@
 
 ## Current Task
 
-Continue from the reported T9 fixes, correct the speculative theme change, and
-audit the T9 pinyin mapping for systemic missing readings beyond the examples
-the user tested.
+Implement the first small physical-key behavior changes: physical Delete on an
+empty editor exits the IME, T9 mode switching shows an input-method-owned badge,
+and English Caps/Shift adopts that badge when no multi-tap character is pending.
+
+## Pending Physical-Key Requests
+
+- When the target editor/input field has no text, pressing the physical Delete
+  key should exit the input method using the same logic as the existing
+  on-screen exit-IME button, instead of acting as a normal backspace.
+- First implementation step: handle only physical Delete on key down, after T9
+  pending composition/punctuation handling and before forwarding to Fcitx or the
+  target editor. The action should call `requestHideSelf(0)`, matching the
+  on-screen exit control.
+- Switching between Chinese, English, and numeric modes needs a more obvious
+  animated confirmation than the current subtle feedback.
+- The mode-switch animation should not reuse the existing English Caps/Shift
+  visual behavior if that behavior risks accidentally committing text.
+- Next implementation step: add an input-method-owned mode badge for
+  Chinese/English/numeric switches. It should be rendered inside `InputView`
+  instead of using `InputConnection.setComposingText()`.
+- English Caps/Shift now adopts the new animation style and removes its
+  original no-pending-character composing-text feedback.
+- Current implementation step: migrate English Caps/Shift's no-pending-character
+  feedback from editor composing text to the same input-method-owned badge. If a
+  multi-tap character is pending, keep refreshing that pending composing
+  character because it represents real text the user may commit.
+- Follow-up feedback: the mode badge animation should be faster so physical-key
+  mode/case changes feel more responsive.
+- The space key should continue showing the current Chinese/English mode label.
 
 ## Build Feedback
 
@@ -105,8 +131,6 @@ cannot move focus or change pages.
 - Pinyin candidates are missing for readings such as `jiang`, `liang`, `kuan`,
   and `kuang`.
 - The pinyin display should update after Hanzi candidate selection.
-- Defer keyboard skin/theme work until the user provides the design direction
-  and can test each incremental step.
 
 ## Pinyin Coverage Audit
 
@@ -176,10 +200,6 @@ Chinese input, pinyin prediction/filtering, and `#` mode switching.
   from occupying the T9 punctuation moment.
 - `T9PinyinUtils` lacks several common pinyin entries needed by the reported
   readings, including `jiang`, `liang`, `kuan`, and `kuang`.
-- Theme presets are centralized in `ThemePreset.kt`, and the visible built-in
-  list is `ThemeManager.BuiltinThemes`; theme additions should not be made
-  without the user's concrete direction.
-- The speculative built-in themes added in the previous pass were reverted.
 
 ## Constraints
 
@@ -189,6 +209,9 @@ Chinese input, pinyin prediction/filtering, and `#` mode switching.
 - Do not run full Gradle builds or comprehensive tests; use basic static/syntax
   checks only.
 - Functional Android Studio/device testing is left to the user.
+- Implement only the empty-editor physical Delete step and the T9 mode-switch
+  badge for now; leave Caps/Shift feedback migration for a later small,
+  testable step.
 
 ## Edge Cases
 
@@ -220,8 +243,6 @@ Chinese input, pinyin prediction/filtering, and `#` mode switching.
   user-configured T9 candidate budget.
 - Local punctuation candidate navigation should consume DPAD keys at page/focus
   boundaries so the editor cursor does not move.
-- Theme work should be split into small user-tested steps instead of adding
-  finished themes speculatively.
 - Clearing transient input state should hide inline suggestions without disabling
   Android inline suggestions for normal autofill fields.
 - Adding all 71 missing pinyin strings is small in APK/code size, and the user
@@ -230,6 +251,21 @@ Chinese input, pinyin prediction/filtering, and `#` mode switching.
   syllables, 451 local T9 map strings, and 0 missing Rime syllables. The local
   count is higher because the map also contains single-letter prefix candidates
   and compatibility spellings such as `lue`/`nue`.
+- Delete-on-empty must not interfere with normal deletion when the editor still
+  contains text, active composition, pending punctuation, or selectable
+  candidates. Only the truly empty-editor case should invoke the same exit-IME
+  behavior as the existing on-screen exit button.
+- The empty-editor check can be narrow: no selected text, no composing range, no
+  local T9 composition state, no pending English multi-tap character, no pending
+  T9 punctuation, no text before the cursor, and no text after the cursor.
+- Mode-switch feedback should be visible enough for physical-key use, but
+  should not create a text-commit path or consume input in a way that changes
+  composition unexpectedly.
+- The first mode-switch feedback step should only affect T9 mode switching.
+  English Caps/Shift can keep its current behavior until the mode badge is
+  tested successfully.
+- Caps/Shift migration should remove the old delayed composing-text indicator
+  path so a stale dismiss runnable cannot clear unrelated composing text.
 
 ## Previous Completed Work
 

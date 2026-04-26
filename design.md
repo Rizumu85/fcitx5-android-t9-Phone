@@ -4,14 +4,46 @@
 
 Provide a comfortable Android input method for physical T9-key phones, centered
 on Chinese T9 through Rime, English multi-tap, numeric entry, compact on-screen
-controls, and a readable themeable keyboard surface.
+controls, and a readable keyboard surface.
 
 ## Current Task Design
 
-Create a repo-level `AGENTS.md` that merges Rizum planning/documentation rules
-with Karpathy-style simplicity, assumptions, and surgical implementation rules.
-The file should be concise enough for future agents to follow without rereading
-the full skill files.
+Implement upcoming physical-key behavior in small testable steps. The current
+completed steps cover empty-editor physical Delete, a T9 mode-switch badge, and
+English Caps/Shift no-pending-character feedback on the same badge. Later steps
+should preserve existing T9 candidate, punctuation, pinyin, and space-label
+behavior.
+
+## Pending Physical-Key Behavior Design
+
+For the physical Delete key, add an empty-editor guard before normal backspace
+handling. If there is active composition, pending punctuation, candidate focus,
+or editor text before the cursor, Delete should keep its current deletion
+behavior. Only when the editor is truly empty should Delete trigger the exit
+behavior.
+
+The empty-editor exit destination should match the existing on-screen exit-IME
+button exactly, so physical Delete and the visible exit control share behavior.
+Implement this as the first small testable step in `FcitxInputMethodService`:
+intercept mapped physical Delete on `ACTION_DOWN`, verify that the editor and
+local transient input states are empty, call `requestHideSelf(0)`, and consume
+the matching key-up event.
+
+For Chinese/English/numeric mode switching, introduce a clear animated
+confirmation that is separate from text composition and candidate commit paths.
+The animation should be controlled by mode state changes, not by inserting or
+confirming text. Keep the existing space-key Chinese/English label behavior.
+The first implementation should be an `InputView` overlay badge shown from
+`switchToNextT9Mode()`: a centered, non-clickable label that fades/scales in,
+holds briefly, then fades out. It must not call `InputConnection` APIs.
+
+For this migration, generalize the `InputView` badge API so both T9 mode labels
+and English case labels can use it. English Caps/Shift should show `abc`,
+`Abc`, or `ABC` in the badge only when there is no pending multi-tap character.
+When a pending multi-tap character exists, continue updating the editor
+composing text for that actual character.
+Keep the badge animation brief: fast fade/scale in, short hold, fast fade out,
+so repeated physical-key switches do not feel delayed.
 
 ## T9 Punctuation Design
 
@@ -111,17 +143,14 @@ and the T9 context signature. The context signature should cover the current
 preedit text and resolved pinyin filter prefixes so deletion and filter toggles
 do not temporarily reuse an old highlighted candidate index.
 
-## Theme Design
-
-Do not add themes speculatively. Theme/skin work should wait for the user's
-visual direction, then proceed in small testable steps.
-
 ## Non-Goals
 
 - Do not redesign the T9 engine or Rime bridge.
 - Do not add user-configurable punctuation maps.
 - Do not remove Android inline suggestions globally.
 - Do not run full Android builds or device tests in this task.
+- Do not change the pending English multi-tap character preview while migrating
+  Caps/Shift's no-pending-character feedback.
 
 ## Previous Completed Design
 

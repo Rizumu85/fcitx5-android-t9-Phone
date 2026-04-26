@@ -6,13 +6,27 @@ Rizum Guidelines are active for this project/thread until the user says otherwis
 
 ## Current Checklist
 
+- [x] Document the pending Delete and mode-switch animation requests without implementing them.
+- [x] Decide that physical Delete on an empty editor should use the same exit-IME logic as the on-screen exit button.
+- [x] Design the empty-editor Delete guard around composition, pending punctuation, candidates, and normal text deletion.
+- [x] Implement physical Delete on an empty editor using the existing exit-IME logic.
+- [x] Run a narrow static/syntax check for the touched Kotlin file only.
+- [x] Design a clearer Chinese/English/numeric mode-switch animation that is independent from text commit paths.
+- [x] Implement an input-method-owned T9 mode-switch badge without changing Caps/Shift feedback.
+- [x] Run a narrow static/syntax check for the touched Kotlin files only.
+- [x] Accept the mode-switch badge as the feedback style for English Caps/Shift.
+- [x] Migrate English Caps/Shift no-pending-character feedback to the input-method-owned badge.
+- [x] Remove the old composing-text mode indicator path.
+- [x] Run a narrow static/syntax check for the touched Kotlin files only.
+- [x] Keep the space key's Chinese/English mode label while changing mode-switch feedback.
+- [x] Shorten the mode badge animation timing for faster feedback.
+- [x] Run a narrow static/syntax check for the touched Kotlin file only.
 - [x] Read the README and existing planning docs to understand the app and current context.
 - [x] Create a repo-level `AGENTS.md` merging Rizum and Karpathy guidelines.
-- [x] Refresh `analysis.md`, `design.md`, and `plan.md` for the reported T9 and theme work.
+- [x] Refresh `analysis.md`, `design.md`, and `plan.md` for the reported T9 work.
 - [x] Implement local Chinese `1` punctuation cycling and `*` punctuation-set switching.
 - [x] Add the missing T9 pinyin readings for `jiang`, `liang`, `kuan`, and `kuang`.
 - [x] Update the local T9 pinyin display after Hanzi candidate selection when the candidate comment identifies the consumed reading.
-- [x] Revert the speculative built-in theme additions; theme work will wait for the user's design direction.
 - [x] Audit the T9 pinyin map against the bundled Rime Luna Pinyin dictionary.
 - [x] Complete the T9 pinyin map for the audited missing syllables.
 - [x] Run limited syntax/static checks only, then hand functional testing to the user.

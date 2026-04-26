@@ -511,6 +511,21 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
         }
     }
 
+    private fun shouldHideImeForEmptyEditorDelete(): Boolean {
+        if (composing.isNotEmpty()) return false
+        if (hasT9CompositionState()) return false
+        if (multiTapPendingChar != null) return false
+        if (t9PendingPunctuationText != null) return false
+
+        val lastSelection = selection.latest
+        if (lastSelection.isNotEmpty()) return false
+
+        val ic = currentInputConnection ?: return false
+        val before = ic.getTextBeforeCursor(1, 0) ?: return false
+        val after = ic.getTextAfterCursor(1, 0) ?: return false
+        return before.isEmpty() && after.isEmpty()
+    }
+
     private fun handleReturnKey() {
         currentInputEditorInfo.run {
             if (inputType and InputType.TYPE_MASK_CLASS == InputType.TYPE_NULL ||
@@ -1000,36 +1015,13 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
         commitPendingT9Punctuation()
     }
 
-    // Handler for mode indicator
-    private val modeIndicatorHandler = android.os.Handler(android.os.Looper.getMainLooper())
-    private var modeIndicatorShowing = false
-    private val modeIndicatorDismissRunnable = Runnable {
-        if (modeIndicatorShowing) {
-            currentInputConnection?.setComposingText("", 1)
-            currentInputConnection?.finishComposingText()
-            modeIndicatorShowing = false
-        }
-    }
-
-    /**
-     * Show mode indicator briefly using composing text
-     */
-    private fun showModeIndicator(mode: String) {
-        modeIndicatorHandler.removeCallbacks(modeIndicatorDismissRunnable)
-        currentInputConnection?.setComposingText("[$mode]", 1)
-        modeIndicatorShowing = true
-        modeIndicatorHandler.postDelayed(modeIndicatorDismissRunnable, 600)
-    }
-
     private fun showEnglishCaseStateOrRefreshPending() {
         val pendingChar = multiTapPendingChar
         if (pendingChar != null) {
-            modeIndicatorHandler.removeCallbacks(modeIndicatorDismissRunnable)
-            modeIndicatorShowing = false
             currentInputConnection?.setComposingText(applyEnglishCase(pendingChar).toString(), 1)
             return
         }
-        showModeIndicator(
+        inputView?.showModeIndicatorBadge(
             when (t9EnglishCaseState) {
                 T9EnglishCaseState.OFF -> "abc"
                 T9EnglishCaseState.SHIFT_ONCE -> "Abc"
@@ -1108,8 +1100,6 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
         val punctuation = activeT9PunctuationList()[t9PendingPunctuationIndex]
         t9PendingPunctuationText = punctuation
         clearTransientInputUiState()
-        modeIndicatorHandler.removeCallbacks(modeIndicatorDismissRunnable)
-        modeIndicatorShowing = false
         candidatesView?.refreshT9Ui()
         multiTapHandler.removeCallbacks(t9PunctuationTimeoutRunnable)
     }
@@ -1263,8 +1253,6 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
         multiTapLastTime = currentTime
         multiTapPendingChar = letters[multiTapIndex]
 
-        modeIndicatorHandler.removeCallbacks(modeIndicatorDismissRunnable)
-        modeIndicatorShowing = false
         val displayChar = applyEnglishCase(multiTapPendingChar!!)
         currentInputConnection?.setComposingText(displayChar.toString(), 1)
 
@@ -1305,6 +1293,7 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
         
         val modeName = getCurrentT9ModeLabel()
         onT9ModeChanged?.invoke(modeName)
+        inputView?.showModeIndicatorBadge(modeName)
     }
 
     private fun commitLiteralT9Star(chineseState: T9InputState) {
@@ -2152,6 +2141,15 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
         }
 
         val (mappedKeyCode, mappedEvent) = mapKeyEvent(keyCode, event)
+        if (mappedKeyCode == KeyEvent.KEYCODE_DEL &&
+            mappedEvent.action == KeyEvent.ACTION_DOWN &&
+            mappedEvent.repeatCount == 0 &&
+            shouldHideImeForEmptyEditorDelete()
+        ) {
+            requestHideSelf(0)
+            t9ConsumedNavigationKeyUp = keyCode
+            return true
+        }
         // Intercept physical DEL (including BACK remapped to DEL) when the only thing left to
         // undo is a previously selected pinyin segment; reopen it as digits instead of letting
         // Rime swallow another letter.
