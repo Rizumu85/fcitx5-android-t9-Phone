@@ -2,9 +2,12 @@
 
 ## Current Task
 
-Add two user-requested built-in light themes from provided mockups: a grayscale
-variant with black candidate focus and a pink-accent variant with pink candidate
-focus.
+Correct the physical numeric shortcut behavior for Chinese T9 candidate
+selection: shortcut labels belong on the Hanzi candidate row, not the pinyin
+filter row, and long-press digits should select bottom-row candidates instead
+of inserting long-press numbers during active pinyin composition. Short physical
+`2`-`9` presses should send their digit on key-up so long press can be detected
+before any digit reaches Rime.
 
 ## Theme Color Request
 
@@ -56,12 +59,11 @@ focus.
 
 ## Pending Physical-Key Requests
 
-- Release follow-up: bump the app version after the T9/visual theme batch. The
-  current source baseline is `baseVersionName = "0.1.2"` and
-  `baseVersionCode = 10`; version codes are calculated as
-  `baseVersionCode * 10 + abiId`, so the latest existing Play release note file
-  is `104.txt`. The next patch release should use `0.1.3`,
-  `baseVersionCode = 11`, and `114.txt` release notes for the highest ABI code.
+- Release follow-up correction: the user wants this batch labeled as `2.0.0`,
+  not `0.1.3`. The earlier edit touched the fallback base version but missed
+  that Gradle normally derives `versionName` from `buildVersionName` or
+  `git describe`; set the explicit build version override and fallback base
+  version to `2.0.0`.
 - Follow-up keyboard preference request: change the default regular virtual
   keyboard portrait height from 40% to 39%. This is the non-T9
   `keyboard_height_percent` default; existing user preferences remain unchanged.
@@ -84,6 +86,131 @@ focus.
   candidate comment when `getT9CompositionKeyCount()` was zero. That made stale
   candidate comments eligible as a top-row fallback after the final digit was
   deleted.
+- Bug report: typing a partial sequence like `dengdengws` can display the top
+  pinyin preview as `dengdengwo` when a Hanzi candidate such as `等等我是` has
+  the comment `deng deng wo shi`. The preview currently crops the highlighted
+  candidate comment by input length without validating that the candidate
+  comment letters match the actual T9 digits. `wo` maps to `96`, but the typed
+  `ws` suffix maps to `97`.
+- Correct matching behavior: the preview should not reject the selected Hanzi
+  reading wholesale. It should keep using the selected Hanzi candidate's pinyin
+  where candidate letters match the user's typed T9 keys, skip candidate letters
+  that do not match, and continue matching later candidate letters. For
+  `deng deng wo shi` against typed `dengdengws`, this preserves `w`, skips `o`,
+  then matches `s`, yielding a preview equivalent to `dengdengws`.
+- Feature request: while composing Chinese T9 pinyin, tapping the on-screen
+  Return key should commit the predicted pinyin text itself, not the Hanzi
+  candidate or an editor action. The committed text should remove display
+  separators, so a preview like `deng deng wo` commits as `dengdengwo`.
+- Bug report: in search fields, physical backspace can require two presses
+  before text is deleted across Chinese, English, and numeric modes. The likely
+  culprit is the empty-editor Delete guard: some search widgets may return empty
+  one-character surrounding text even when the field has content, so the first
+  backspace is consumed by the exit-IME path instead of reaching normal delete.
+- Additional guard: if the tracked cursor position is already greater than
+  zero, the editor cannot be empty from the user's perspective, so physical
+  Delete must keep its normal deletion behavior regardless of surrounding-text
+  quirks.
+- Follow-up clarification: the keyboard is not being hidden on the first press,
+  so the empty-editor guard is probably not the active failure path. The more
+  likely path is that idle physical Backspace is sent through Fcitx as a key
+  event, and some search fields do not delete until the next press. When there
+  is no composing text or local T9 pending state, physical Backspace should
+  delete directly through `InputConnection` instead of depending on the Fcitx
+  BackSpace round trip.
+- Feature correction: numeric shortcut labels and long-press shortcut selection
+  should apply to the Hanzi candidate row, not the pinyin filter row. The pinyin
+  filter row should remain text-only.
+- Long-pressing physical digits during active Chinese T9 composition should
+  select the corresponding visible Hanzi candidate and cancel the digit-display
+  path that would otherwise insert the long-pressed number. The local
+  symbol/punctuation candidate list should keep the same shortcut-label and
+  long-press selection behavior.
+- Cleaner implementation direction: delay physical Chinese T9 `2`-`9` digit
+  input until key-up. The key-down event should be consumed locally; if Android
+  reports a long-press repeat first, select the numbered Hanzi candidate and do
+  not send a digit to Rime. If the key is released without a long-press flag,
+  synthesize the normal digit down/up pair to Rime.
+- Follow-up correction: Chinese T9 `1` long press should also select the first
+  visible Hanzi candidate while active pinyin composition exists, while short
+  press `1` should send the pinyin segmentation separator to Rime. For the
+  local symbol/punctuation list, delay `1` cycling until key-up so long-press
+  `1` can directly select the first visible symbol without first running the
+  short press cycle.
+- Bug report: short `1` still does not segment pinyin. Investigation found the
+  local tracker treats `KEYCODE_1` as an apostrophe, but forwarding Android
+  `KEYCODE_1` sends `FcitxKey_1` to Rime. Fcitx/Rime pinyin accepts
+  `FcitxKey_apostrophe` as the segmentation key, so short `1` must send an
+  apostrophe keysym while keeping the local tracker apostrophe update.
+- Follow-up correction: simulated apostrophe key input is not reliably mutating
+  Rime's current input buffer. The existing pinyin-filter path already uses
+  `getRimeInput()` and `replaceRimeInput()` for precise Rime edits, so
+  separator input should directly insert `'` at the end of the Rime input
+  buffer instead of relying on a synthetic key event.
+- Additional root cause: the short-`1` key-up branch checked the editor-side
+  `CHINESE_COMPOSING` state before inserting the separator. Since physical
+  `2`-`9` input is now sent on key-up through queued Fcitx jobs, the local T9
+  tracker can already contain digits while the editor composing range has not
+  updated yet. In that window, short `1` was consumed but did nothing. Use the
+  local T9 key count as the activation condition for separator insertion.
+- Follow-up bug report: after separator input, the pinyin filter row can no
+  longer select the segment before the separator because the tracker reports the
+  empty segment after the trailing apostrophe as current. Treat a trailing
+  apostrophe as "selection still targets the preceding digit segment" until the
+  next digit is typed or the user explicitly selects a pinyin.
+- Follow-up bug report: separator handling only works halfway. For input like
+  `58'23`, the pinyin option row appears after `58'`, but after typing the next
+  segment it switches to options for `23`. Manual separator input should keep
+  pinyin selection on the first unresolved segment before the separator until
+  that segment is explicitly selected, then continue with the following segment.
+- Follow-up bug report: segmentation now affects Rime, but the local pinyin
+  input preview is not visible. Two local display paths can hide it: Rime may
+  emit a transient empty preedit after apostrophe and clear the local tracker,
+  and candidate-comment preview can override a local raw display such as
+  `gan'`. Keep the local separator display through that transient empty event
+  and prefer the local raw T9 preedit whenever the raw composition contains an
+  apostrophe separator.
+- Follow-up correction: the top pinyin preview should still prefer the focused
+  Hanzi candidate's reading when that reading can be validated against the
+  user's actual T9 keys. Manual separators should constrain the matching so a
+  candidate reading cannot borrow letters across a user-entered apostrophe; if a
+  separated segment does not match the candidate reading, fall back only for
+  that segment to the local digit-based preview.
+- Follow-up bug report: after restoring candidate-based separator-aware preview,
+  the visible apostrophe separator itself disappeared from the top preview.
+  Candidate-derived pinyin should still render the user's manual separator
+  boundaries, including a trailing separator immediately after short `1`.
+- Follow-up bug report: after selecting a pinyin filter, the separator
+  disappears again, and reopening/returning from the filter also loses it. The
+  model currently flattens manual raw input from forms like `58'23` into
+  `5823` when a segment becomes resolved, so the separator is no longer
+  available for display or replay.
+- Additional root cause: when reopening a selected pinyin filter, engine restore
+  replaces `pinyin'` with only the source digits. For a manually separated
+  composition this should restore `digits'`, preserving the user-entered
+  separator in Rime as well as in the Kotlin model.
+- Safety requirement: if the T9 candidate bubble is fully hidden because the
+  app believes there is no active local T9 composition, any hidden Rime T9 input
+  left behind is stale and should be cleared. Hidden letters must not remain
+  deletable after the visible T9 UI has disappeared.
+- Concrete failing case: `52'5392` with pinyin filter `ka` and Hanzi candidate
+  `卡了呀` should preview `ka'leya`, not `ka'lewa`. The post-separator raw
+  digit segment `5392` maps to multiple candidate comment syllables (`le ya`),
+  but the current preview matcher only pairs it with the next single comment
+  syllable (`le`) and falls back for the remaining digits.
+- Comprehensive direction: separator-aware preview and pinyin-candidate target
+  selection should use the user's raw segmented source as the canonical state.
+  Resolved pinyin choices are overlays on that source, not a replacement for
+  the segmented model.
+- Additional discovery: `rawPreedit` was also being overwritten by Rime display
+  text after engine-backed pinyin selection, mixing source strings like
+  `52'5392` with display strings like `ka'5392`. That makes later raw parsing
+  unreliable. Keep `rawPreedit` as source digits/apostrophes only.
+- Bug report: in Chinese mode with no input, long-pressing physical `1` opens
+  punctuation and commits the first symbol instead of entering digit `1`.
+  Cause: idle short-`1` punctuation is still executed on key-down, so the
+  repeat event sees a pending punctuation list and treats long-press `1` as
+  shortcut selection.
 - Bug report: while typing pinyin in Chinese T9, deleting pinyin can make the
   Hanzi candidate focus briefly jump to a stale non-first item, such as the
   fifth candidate, before returning to the first candidate. This likely means a

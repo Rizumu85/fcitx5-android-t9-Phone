@@ -359,6 +359,30 @@ class CandidatesView(
 
     fun getHighlightedT9Pinyin(): String? = pinyinBarAdapter.getHighlightedPinyin()
 
+    fun commitT9HanziShortcut(index: Int): Boolean = selectT9ShownHanziCandidate(index)
+
+    fun commitT9PendingPunctuationShortcut(index: Int): Boolean {
+        if (!t9ShownUsesPendingPunctuation) return false
+        val originalIndex = t9ShownOriginalIndices.getOrNull(index) ?: return false
+        return service.commitPendingT9PunctuationCandidate(originalIndex)
+    }
+
+    fun getT9PreviewCommitText(): String? {
+        if (!service.isChineseT9InputModeActive()) return null
+        if (service.getT9CompositionKeyCount() <= 0) return null
+        val shown = t9ShownPaged ?: paged
+        val preview = service.getT9PresentationState(inputPanel, shown)
+            .topReading
+            ?.toString()
+            .orEmpty()
+        val commitText = preview
+            .filter { it != ' ' && it != '\'' }
+            .trim()
+        return commitText.takeIf { text ->
+            text.isNotEmpty() && text.any { it in 'a'..'z' || it in 'A'..'Z' }
+        }
+    }
+
     fun moveHighlightedT9Pinyin(delta: Int): Boolean {
         val moved = pinyinBarAdapter.moveHighlightedIndex(delta)
         if (moved) {
@@ -376,7 +400,11 @@ class CandidatesView(
                 t9HanziCursorIndex = next
                 val updated = shown.copy(cursorIndex = next)
                 t9ShownPaged = updated
-                candidatesUi.update(updated, orientation)
+                candidatesUi.update(
+                    updated,
+                    orientation,
+                    showShortcutLabels = shouldShowT9BottomShortcutLabels(updated)
+                )
                 if (t9ShownUsesPendingPunctuation) {
                     val originalIndex = t9ShownOriginalIndices.getOrNull(next) ?: next
                     service.previewPendingT9PunctuationCandidate(originalIndex)
@@ -534,6 +562,7 @@ class CandidatesView(
             null
         }
         val panelToShow = if (suppressEmptyT9Candidates) {
+            service.clearHiddenChineseT9CompositionIfCandidateUiSuppressed()
             FcitxEvent.InputPanelEvent.Data()
         } else {
             t9State?.topReading?.let {
@@ -542,7 +571,11 @@ class CandidatesView(
         }
         preeditUi.update(panelToShow)
         preeditUi.root.visibility = if (preeditUi.visible) VISIBLE else GONE
-        candidatesUi.update(effectivePaged, orientation)
+        candidatesUi.update(
+            effectivePaged,
+            orientation,
+            showShortcutLabels = shouldShowT9BottomShortcutLabels(effectivePaged)
+        )
         syncPinyinRowWidthToCandidates()
         updatePinyinBar(t9State?.pinyinOptions ?: emptyList(), t9InputModeEnabled)
         updateT9FocusIndicator()
@@ -558,6 +591,12 @@ class CandidatesView(
             visibility = INVISIBLE
         }
     }
+
+    private fun shouldShowT9BottomShortcutLabels(
+        data: FcitxEvent.PagedCandidateEvent.Data
+    ): Boolean =
+        data.candidates.isNotEmpty() &&
+            (t9ShownUsesPendingPunctuation || service.isChineseT9InputModeActive())
 
     private fun applyT9HanziCursor(
         data: FcitxEvent.PagedCandidateEvent.Data,

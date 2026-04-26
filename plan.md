@@ -68,6 +68,66 @@ Rizum Guidelines are active for this project/thread until the user says otherwis
 - [x] Bump base version name and base version code for the next patch release.
 - [x] Add matching Play release notes for the new ABI-derived version code.
 - [x] Leave compile checks for this version metadata update until the user asks.
+- [x] Correct the release label to `2.0.0` in the actual Gradle version-name path and release notes.
+- [x] Validate candidate-comment pinyin previews against the actual typed T9 digits.
+- [x] Run a narrow static diff check for the metadata and T9 preview edits.
+- [x] Add on-screen Return handling that commits the current Chinese T9 pinyin preview without spaces.
+- [x] Clear the T9/Rime composing UI after committing the preview pinyin.
+- [x] Run a narrow static diff check for the Return-key pinyin commit change.
+- [x] Refine candidate-comment preview matching so mismatched letters are skipped instead of rejecting the whole selected reading.
+- [x] Run a narrow static diff check for the refined preview matching.
+- [x] Make the empty-editor physical Delete guard use cursor/extracted text before falling back to surrounding text.
+- [x] Run a narrow static diff check for the search-field backspace fix.
+- [x] Route idle physical Backspace directly through `InputConnection` instead of the Fcitx key-event round trip.
+- [x] Run a narrow static diff check for the direct physical Backspace path.
+- [x] Add small numeric shortcut labels to the T9 pinyin row and local punctuation list.
+- [x] Handle long-press number selection for focused pinyin options and pending punctuation options.
+- [x] Run a narrow static diff check for the numeric shortcut change.
+- [x] Move numeric shortcut labels from the pinyin filter row to the Hanzi/punctuation candidate row.
+- [x] Route Chinese T9 long-press digit shortcuts to bottom-row Hanzi selection and cancel digit output.
+- [x] Run a narrow static diff check for the corrected shortcut behavior.
+- [x] Change physical Chinese T9 `2`-`9` short input to key-up commit so long press does not require undo.
+- [x] Run a narrow static diff check for the key-up digit commit change.
+- [x] Make Chinese T9 `1` long press select the first visible Hanzi candidate during active composition.
+- [x] Delay local punctuation `1` cycling until key-up so long press selects shortcut `1` directly.
+- [x] Run a narrow static diff check for the `1` long-press corrections.
+- [x] Send Chinese T9 short `1` as the pinyin segmentation separator on key-up during active composition.
+- [x] Ensure opening the punctuation list with short `1` does not also cycle once on key-up.
+- [x] Run a narrow static diff check for the short `1` segmentation change.
+- [x] Send apostrophe, not digit `1`, to Rime for Chinese T9 short `1` segmentation.
+- [x] Run a narrow static diff check for the apostrophe segmentation fix.
+- [x] Replace synthetic apostrophe key sending with direct Rime input-buffer insertion.
+- [x] Run a narrow static diff check for the direct separator insertion fix.
+- [x] Trigger short `1` separator insertion from local T9 key count, not only editor composing state.
+- [x] Run a narrow static diff check for the local-state `1` trigger fix.
+- [x] Keep pinyin options selectable for the segment before a trailing separator.
+- [x] Replace the pre-separator digit segment plus separator when selecting pinyin after `1`.
+- [x] Run a narrow static diff check for trailing-separator pinyin selection.
+- [x] Keep pinyin options bound to the first unresolved segment when more digits follow a manual separator.
+- [x] Consume the first separator-delimited segment and continue with the following digits after pinyin selection.
+- [x] Run a narrow static diff check for multi-segment separator pinyin selection.
+- [x] Preserve the local pinyin preview across the transient empty preedit after separator input.
+- [x] Preserve local separator-aware T9 preedit as a fallback when apostrophe is present.
+- [x] Run a narrow static diff check for the separator preview fix.
+- [x] Restore Hanzi-candidate-based top preview when separator-aware candidate reading matches the typed T9 segments.
+- [x] Keep apostrophe boundaries from letting candidate previews match across manually separated segments.
+- [x] Run a narrow static diff check for candidate-based separator preview.
+- [x] Preserve visible apostrophe separators in candidate-based T9 preview.
+- [x] Run a narrow static diff check for separator display restoration.
+- [x] Keep raw apostrophe boundaries after selecting a pinyin filter.
+- [x] Restore segmented raw input when reopening a selected pinyin filter.
+- [x] Run a narrow static diff check for filter-state separator preservation.
+- [x] Preserve the apostrophe in Rime when restoring a manually separated selected pinyin segment.
+- [x] Clear hidden Rime T9 composition when the local candidate bubble is fully suppressed.
+- [x] Run a narrow static diff check for restore and hidden-composition cleanup.
+- [x] Refactor T9 preview helpers to derive separator-aware display from raw segmented source.
+- [x] Match one raw segment against multiple Hanzi comment syllables for cases like `52'5392` -> `ka'leya`.
+- [x] Derive pinyin filter candidates from the first unresolved raw segment after resolved prefixes.
+- [x] Keep `rawPreedit` source-only instead of mixing in Rime display text.
+- [x] Run a narrow static diff check for the raw-segmented T9 preview refactor.
+- [x] Delay idle Chinese short-`1` punctuation opening until key-up.
+- [x] Make idle Chinese long-press `1` commit literal digit `1` without selecting punctuation.
+- [x] Run a narrow static diff check for idle `1` long-press behavior.
 - [x] Document the pending Delete and mode-switch animation requests without implementing them.
 - [x] Decide that physical Delete on an empty editor should use the same exit-IME logic as the on-screen exit button.
 - [x] Design the empty-editor Delete guard around composition, pending punctuation, candidates, and normal text deletion.

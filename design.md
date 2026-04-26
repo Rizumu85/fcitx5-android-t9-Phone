@@ -8,8 +8,8 @@ controls, and a readable keyboard surface.
 
 ## Current Task Design
 
-Add two built-in light theme presets matching the provided mockups. Keep the
-implementation limited to theme preset definitions and the built-in theme list.
+Correct Chinese T9 numeric shortcuts so the bottom candidate row owns shortcut
+labels and long-press selection. The pinyin filter row remains text-only.
 
 ## Theme Preset Design
 
@@ -61,10 +61,12 @@ unchanged.
 
 ## Release Version Design
 
-Keep the existing versioning scheme in `Versions.kt`: bump the patch version
-name and increment `baseVersionCode` by one. Because ABI-specific version codes
-derive from `baseVersionCode * 10 + abiId`, also add the matching highest-code
-Play release notes file for the new release.
+Label this release as `2.0.0`. Gradle's actual `versionName` is resolved from
+`BUILD_VERSION_NAME`/`buildVersionName`, then `git describe`, then
+`Versions.baseVersionName`, so set the committed `buildVersionName` override and
+the fallback base version name to the same value. Keep the already incremented
+`baseVersionCode` so APK updates remain installable, and keep the matching
+ABI-derived Play release note file.
 
 ## Pending Physical-Key Behavior Design
 
@@ -80,6 +82,15 @@ Implement this as the first small testable step in `FcitxInputMethodService`:
 intercept mapped physical Delete on `ACTION_DOWN`, verify that the editor and
 local transient input states are empty, call `requestHideSelf(0)`, and consume
 the matching key-up event.
+Use the most reliable editor text signal available for that empty check. Prefer
+the tracked cursor position and `InputConnection.getExtractedText()` so search
+fields that do not expose one-character surrounding text are not mistaken for
+empty; use `getTextBeforeCursor()`/`getTextAfterCursor()` only as a fallback.
+When physical Backspace is pressed while there is no local composition,
+selection reopen, pending punctuation, or pending English multi-tap character,
+delete directly through `InputConnection`. This keeps search fields from
+requiring a second press because an idle BackSpace key event was first consumed
+inside the Fcitx/editor key-event path.
 
 For Chinese/English/numeric mode switching, introduce a clear animated
 confirmation that is separate from text composition and candidate commit paths.
@@ -178,6 +189,19 @@ Because the same row also indicates how many T9 digit keys have been entered,
 candidate comment readings should be cropped by the current T9 key count before
 display. This keeps prefix matches intuitive: after one `2`, a highlighted `ai`
 candidate previews `a`, and a highlighted `ba` candidate previews `b`.
+Match candidate comments to the user's actual T9 keys at the letter level:
+preserve selected-candidate pinyin letters that correspond to the typed T9
+digits, skip non-matching candidate letters, and continue matching later letters
+in the selected candidate reading. This lets a selected reading like
+`deng deng wo shi` preview typed initials as `deng deng ws` rather than
+incorrectly turning `ws` into `wo`. If the selected reading cannot cover the
+remaining typed keys, append the normal digit-based pinyin preview for the
+remaining suffix.
+When the on-screen Return key is tapped during active Chinese T9 pinyin
+composition, commit the same predicted pinyin shown in the top row as plain text
+with separators removed. This is a virtual-keyboard Return behavior; normal
+Return/editor actions remain unchanged when there is no active pinyin
+composition.
 When the current T9 digit count becomes zero during deletion, the top pinyin
 preview must stay empty. Do not use a highlighted candidate comment as fallback
 while there are no active T9 keys, because that can flash a full reading such as
@@ -187,6 +211,76 @@ render with a deterministic local focus immediately. Do not allow a transient
 candidate page to display an engine-provided or stale `cursorIndex` such as a
 previous fifth item before the local cursor reset moves focus back to the first
 item.
+Show numeric shortcut labels only on the bottom candidate row: Hanzi candidates
+while Chinese T9 composition is active, and local punctuation candidates while
+punctuation is pending. Do not show numeric prefixes on the pinyin filter row.
+Long-pressing a physical digit should select the matching visible bottom-row
+candidate. For physical Chinese T9 `2`-`9`, consume key-down locally and send
+the digit to Rime only on key-up when no long press was detected. This avoids
+the earlier undo path where the first long-press digit had to be removed before
+candidate selection.
+Apply the same long-press selection rule to `1` while active pinyin composition
+exists: short press sends the apostrophe pinyin segmentation separator to Rime
+on key-up, and long press selects the first visible Hanzi candidate. Update the
+local T9 tracker with the same apostrophe before sending the Rime key so the
+local pinyin row and Rime composition stay aligned. When local punctuation
+candidates are already visible, consume `1` on key-down and run the short-press
+punctuation cycle only on key-up; a long press selects shortcut `1` directly.
+Use the Rime bridge's direct input-buffer API for separator insertion:
+`getRimeInput()` followed by `replaceRimeInput(input.length, 0, "'", input.length + 1)`.
+This matches the existing pinyin-filter replacement path and avoids depending
+on whether a synthetic apostrophe key is accepted by the active Rime schema.
+Decide whether short `1` is active from local T9 composition state, not only
+from editor composing state. The local tracker is the earliest reliable signal
+after key-up-delayed digit input.
+When the raw T9 composition contains a manual apostrophe separator and no
+resolved pinyin segment yet, keep the pinyin option row bound to the first
+unresolved digit segment before that separator. This lets the user type
+`58'23` and still choose/filter the pinyin for `58` before moving on to `23`.
+Selecting a pinyin in this separator state should replace the first digit
+segment plus the explicit separator with the normal `pinyin'` Rime replacement,
+avoiding a double separator while leaving the following digits available as the
+next unresolved segment.
+After a separator is entered, preserve the local raw T9 display (`gan'`,
+`xi'an`, etc.) as the fallback and ignore the transient empty Rime preedit
+produced by separator entry so the local preview does not disappear while Rime
+updates. The primary preview should still come from the focused Hanzi candidate
+when possible. For separator-aware matching, split the user's raw T9 input on
+apostrophes and match each digit segment against the corresponding candidate
+comment segment without crossing boundaries. If one segment cannot be validated
+against the candidate reading, use the normal digit-based display for that
+segment while keeping matched candidate-derived segments. Render the preview
+with apostrophes between manually separated segments, and preserve a trailing
+apostrophe when the user has just pressed short `1`.
+When a pinyin filter is selected from a manually separated composition, keep
+the original source raw preedit with apostrophes in `T9CompositionModel`.
+Display can replace resolved source digit spans with their chosen pinyin, but
+the raw model and replay path must keep the separator boundaries so reopening a
+filter restores the same segmented input.
+When reopening a selected pinyin segment, restore `pinyin'` back to `digits'`
+if the saved raw preedit contains a manual separator at that point. This keeps
+Rime's input buffer aligned with the segmented raw model instead of flattening
+it back to plain digits. Also add a defensive cleanup path: when the candidate
+bubble is suppressed because the local T9 composition is empty, clear any hidden
+Chinese T9 engine composition so invisible leftover letters cannot survive
+after the UI disappears.
+Treat the raw T9 source string with apostrophes as the canonical composition
+shape for separator-aware behavior. The top preview should split that raw source
+into digit segments and match each segment against one or more Hanzi candidate
+comment syllables, advancing through the comment syllables sequentially without
+crossing a user-entered apostrophe boundary. Resolved pinyin selections replace
+their source digit spans only for display; they must not flatten or hide the
+remaining raw segments. The pinyin filter row should ask for the first
+unresolved raw segment after the resolved prefix, or the first raw segment
+before a separator when there is no resolved prefix yet.
+Keep `T9CompositionModel.rawPreedit` source-only: digits `2`-`9` plus
+apostrophes. Rime's rendered preedit can still be used as an input-panel
+fallback, but it should not overwrite the canonical source model once local T9
+tracking exists.
+For Chinese idle `1`, delay opening/cycling the punctuation list until key-up,
+the same as the pending-punctuation `1` path. This lets Android report a
+long-press repeat before any symbol list is opened; if long-press occurs, cancel
+the deferred punctuation action and commit literal digit `1`.
 When a Hanzi candidate loses focus, clear its active background immediately
 instead of fading it out. The incoming focus may still animate, but the old
 highlight must not linger during T9 deletion or candidate-context resets.
@@ -203,6 +297,12 @@ In Chinese T9, `1` should only open or cycle local punctuation when there is no
 active pinyin input. If pinyin digits are active and no punctuation is already
 pending, consume `1` as a no-op so accidental presses do not replace the visible
 candidate context with punctuation.
+Show small numeric shortcut labels before local T9 selectable options. Use
+`1`-`9` for the first nine options and `0` for the tenth. Long-pressing that
+physical number selects the matching option when the pinyin row is focused, and
+selects the matching pending punctuation/symbol when the local symbol list is
+open. Do not apply the bottom Hanzi shortcut until digit-key timing can avoid
+first inserting an extra T9 digit into Rime.
 Pinyin candidate display should be short and crisp. Keep the pinyin row reveal
 under a tenth of a second with minimal vertical travel, and add a left-to-right
 content reveal so rows such as `pqrs` feel like they unfold from the start edge.

@@ -109,15 +109,13 @@ class T9PinyinChipAdapter(
         }
 
         fun update(pinyin: String, active: Boolean) {
-            chip.text = pinyin
             val inactiveRow = !highlightActive
-            chip.setTextColor(
-                when {
-                    active -> theme.genericActiveForegroundColor
-                    inactiveRow -> theme.candidateCommentColor
-                    else -> theme.candidateTextColor
-                }
-            )
+            chip.text = pinyin
+            chip.setTextColor(when {
+                active -> theme.genericActiveForegroundColor
+                inactiveRow -> theme.candidateCommentColor
+                else -> theme.candidateTextColor
+            })
             if (pinyin != lastSignature) {
                 lastSignature = pinyin
                 lastActive = active

@@ -12,6 +12,13 @@ class T9CompositionTracker {
 
     private val buffer = StringBuilder()
 
+    private fun digitsOnly(raw: CharSequence): String =
+        buildString {
+            raw.forEach { ch ->
+                if (ch in '2'..'9') append(ch)
+            }
+        }
+
     fun appendDigit(digit: Char) {
         if (digit in '2'..'9') buffer.append(digit)
     }
@@ -46,9 +53,24 @@ class T9CompositionTracker {
     fun getCurrentSegment(): String {
         val lastApos = buffer.lastIndexOf('\'')
         val segment = if (lastApos < 0) buffer else buffer.substring(lastApos + 1)
-        return buildString {
-            for (ch in segment) if (ch in '2'..'9') append(ch)
-        }
+        return digitsOnly(segment)
+    }
+
+    fun getSelectableSegment(): String {
+        val firstApos = buffer.indexOf('\'')
+        if (firstApos < 0) return getCurrentSegment()
+        return digitsOnly(buffer.substring(0, firstApos))
+    }
+
+    fun hasManualSeparator(): Boolean = buffer.indexOf('\'') >= 0
+
+    fun endsWithApostrophe(): Boolean = buffer.lastOrNull() == '\''
+
+    fun replaceSelectableSegmentThroughFirstSeparator(newSegment: String): Boolean {
+        val firstApos = buffer.indexOf('\'')
+        if (firstApos < 0) return false
+        buffer.replace(0, firstApos + 1, digitsOnly(newSegment))
+        return true
     }
 
     /**
@@ -74,15 +96,7 @@ class T9CompositionTracker {
         val start = if (lastApos < 0) 0 else lastApos + 1
         val oldSegment = getCurrentSegment()
         val end = start + oldSegment.length
-        buffer.replace(
-            start,
-            end,
-            buildString {
-                newSegment.forEach { ch ->
-                    if (ch in '2'..'9') append(ch)
-                }
-            }
-        )
+        buffer.replace(start, end, digitsOnly(newSegment))
     }
 
     fun isEmpty(): Boolean = buffer.isEmpty()

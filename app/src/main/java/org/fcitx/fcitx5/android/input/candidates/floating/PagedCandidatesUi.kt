@@ -41,6 +41,7 @@ class PagedCandidatesUi(
 
     private var isVertical = false
     private var highlightActive = true
+    private var showShortcutLabels = false
     private val highlightOverflowPaddingPx =
         (highlightCornerRadiusPx * 0.35f).roundToInt().coerceAtLeast(ctx.dp(2))
 
@@ -86,7 +87,8 @@ class PagedCandidatesUi(
                     holder.ui.update(
                         candidate,
                         active = highlightActive && position == data.cursorIndex,
-                        inactiveRow = !highlightActive
+                        inactiveRow = !highlightActive,
+                        shortcutLabel = if (showShortcutLabels) shortcutLabelForPosition(position) else null
                     )
                     holder.ui.root.setOnClickListener {
                         onCandidateClick.invoke(position)
@@ -132,9 +134,11 @@ class PagedCandidatesUi(
     @SuppressLint("NotifyDataSetChanged")
     fun update(
         data: FcitxEvent.PagedCandidateEvent.Data,
-        orientation: FloatingCandidatesOrientation
+        orientation: FloatingCandidatesOrientation,
+        showShortcutLabels: Boolean = false
     ) {
         this.data = data
+        this.showShortcutLabels = showShortcutLabels
         this.isVertical = when (orientation) {
             FloatingCandidatesOrientation.Automatic -> data.layoutHint == LayoutHint.Vertical
             else -> orientation == FloatingCandidatesOrientation.Vertical
@@ -156,5 +160,13 @@ class PagedCandidatesUi(
         if (highlightActive == active) return
         highlightActive = active
         candidatesAdapter.notifyDataSetChanged()
+    }
+
+    companion object {
+        private fun shortcutLabelForPosition(position: Int): String? = when (position) {
+            in 0..8 -> (position + 1).toString()
+            9 -> "0"
+            else -> null
+        }
     }
 }

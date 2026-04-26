@@ -8,6 +8,8 @@ package org.fcitx.fcitx5.android.input.candidates.floating
 import android.content.Context
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
+import android.text.Spanned
+import android.text.style.RelativeSizeSpan
 import android.widget.TextView
 import androidx.core.text.buildSpannedString
 import androidx.core.text.color
@@ -38,7 +40,12 @@ class LabeledCandidateItemUi(
         background = activeBackground
     }
 
-    fun update(candidate: FcitxEvent.Candidate, active: Boolean, inactiveRow: Boolean = false) {
+    fun update(
+        candidate: FcitxEvent.Candidate,
+        active: Boolean,
+        inactiveRow: Boolean = false,
+        shortcutLabel: String? = null
+    ) {
         val candidateSignature = "${candidate.label}|${candidate.text}|${candidate.comment}"
         val labelFg = when {
             active -> theme.genericActiveForegroundColor
@@ -55,6 +62,18 @@ class LabeledCandidateItemUi(
             // Hide label and comment in T9 mode for cleaner display
             if (!t9InputModeEnabled) {
                 color(labelFg) { append(candidate.label) }
+            } else if (shortcutLabel != null) {
+                val start = length
+                color(if (active) theme.genericActiveForegroundColor else theme.candidateCommentColor) {
+                    append(shortcutLabel)
+                }
+                setSpan(
+                    RelativeSizeSpan(SHORTCUT_LABEL_SCALE),
+                    start,
+                    length,
+                    Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+                )
+                append(" ")
             }
             color(fg) { append(candidate.text) }
             if (!t9InputModeEnabled && candidate.comment.isNotBlank()) {
@@ -90,5 +109,6 @@ class LabeledCandidateItemUi(
 
     companion object {
         private const val ACTIVE_HIGHLIGHT_SCALE = 1.07f
+        private const val SHORTCUT_LABEL_SCALE = 0.68f
     }
 }
