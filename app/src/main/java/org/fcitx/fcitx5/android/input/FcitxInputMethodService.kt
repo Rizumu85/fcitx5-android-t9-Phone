@@ -344,6 +344,11 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
         replaceInputViews(it)
     }
 
+    @Keep
+    private val recreateInputViewsListener = ManagedPreference.OnChangeListener<Any> { _, _ ->
+        replaceInputViews(ThemeManager.activeTheme)
+    }
+
     /**
      * Post a fcitx operation to [jobs] to be executed
      *
@@ -373,6 +378,7 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
         recreateInputViewPrefs.forEach {
             it.registerOnChangeListener(recreateInputViewListener)
         }
+        prefs.keyboard.inputUiFont.registerOnChangeListener(recreateInputViewsListener)
         prefs.candidates.registerOnChangeListener(recreateCandidatesViewListener)
         ThemeManager.addOnChangedListener(onThemeChangeListener)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
@@ -3264,7 +3270,8 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
         recreateInputViewPrefs.forEach {
             it.unregisterOnChangeListener(recreateInputViewListener)
         }
-        prefs.candidates.registerOnChangeListener(recreateCandidatesViewListener)
+        prefs.keyboard.inputUiFont.unregisterOnChangeListener(recreateInputViewsListener)
+        prefs.candidates.unregisterOnChangeListener(recreateCandidatesViewListener)
         ThemeManager.removeOnChangedListener(onThemeChangeListener)
         super.onDestroy()
         // Fcitx might be used in super.onDestroy()

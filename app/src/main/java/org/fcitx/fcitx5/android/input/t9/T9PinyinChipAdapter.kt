@@ -10,6 +10,7 @@ import android.view.ViewGroup
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import org.fcitx.fcitx5.android.data.theme.Theme
+import org.fcitx.fcitx5.android.input.InputUiFont
 
 class T9PinyinChipAdapter(
     private val theme: Theme,
@@ -68,6 +69,7 @@ class T9PinyinChipAdapter(
         val chip = TextView(parent.context).apply {
             setTextColor(theme.candidateTextColor)
             textSize = textSizeSp
+            InputUiFont.applyTo(this)
             setPadding(horizontalPaddingPx, verticalPaddingPx, horizontalPaddingPx, verticalPaddingPx)
             minHeight = rowHeightPx
             gravity = Gravity.CENTER_VERTICAL or Gravity.START

@@ -10,6 +10,9 @@ import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
 import android.text.Spanned
 import android.text.style.RelativeSizeSpan
+import android.text.style.SubscriptSpan
+import android.view.Gravity
+import android.view.View
 import android.widget.TextView
 import androidx.core.text.buildSpannedString
 import androidx.core.text.color
@@ -58,11 +61,31 @@ class LabeledCandidateItemUi(
             else -> theme.candidateTextColor
         }
         val altFg = if (active) theme.genericActiveForegroundColor else theme.candidateCommentColor
+        root.gravity = if (t9InputModeEnabled && shortcutLabel != null) {
+            Gravity.CENTER
+        } else {
+            Gravity.CENTER_VERTICAL
+        }
+        root.textAlignment = if (t9InputModeEnabled && shortcutLabel != null) {
+            View.TEXT_ALIGNMENT_CENTER
+        } else {
+            View.TEXT_ALIGNMENT_GRAVITY
+        }
+        root.minWidth = if (t9InputModeEnabled && shortcutLabel != null) {
+            (root.textSize * SHORTCUT_CANDIDATE_MIN_WIDTH_EM).toInt()
+        } else {
+            0
+        }
+        root.includeFontPadding = !(t9InputModeEnabled && shortcutLabel != null)
+        root.setLineSpacing(0f, if (t9InputModeEnabled && shortcutLabel != null) 0.82f else 1f)
         root.text = buildSpannedString {
             // Hide label and comment in T9 mode for cleaner display
             if (!t9InputModeEnabled) {
                 color(labelFg) { append(candidate.label) }
-            } else if (shortcutLabel != null) {
+            }
+            color(fg) { append(candidate.text) }
+            if (t9InputModeEnabled && shortcutLabel != null) {
+                append('\n')
                 val start = length
                 color(if (active) theme.genericActiveForegroundColor else theme.candidateCommentColor) {
                     append(shortcutLabel)
@@ -73,9 +96,13 @@ class LabeledCandidateItemUi(
                     length,
                     Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
                 )
-                append(" ")
+                setSpan(
+                    SubscriptSpan(),
+                    start,
+                    length,
+                    Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+                )
             }
-            color(fg) { append(candidate.text) }
             if (!t9InputModeEnabled && candidate.comment.isNotBlank()) {
                 append(" ")
                 color(altFg) { append(candidate.comment) }
@@ -109,6 +136,7 @@ class LabeledCandidateItemUi(
 
     companion object {
         private const val ACTIVE_HIGHLIGHT_SCALE = 1.07f
-        private const val SHORTCUT_LABEL_SCALE = 0.68f
+        private const val SHORTCUT_LABEL_SCALE = 0.45f
+        private const val SHORTCUT_CANDIDATE_MIN_WIDTH_EM = 1.35f
     }
 }

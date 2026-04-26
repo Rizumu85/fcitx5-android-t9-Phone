@@ -12,6 +12,7 @@ import androidx.core.content.edit
 import androidx.preference.PreferenceManager
 import org.fcitx.fcitx5.android.R
 import org.fcitx.fcitx5.android.data.InputFeedbacks.InputFeedbackMode
+import org.fcitx.fcitx5.android.input.InputUiFont
 import org.fcitx.fcitx5.android.input.candidates.expanded.ExpandedCandidateStyle
 import org.fcitx.fcitx5.android.input.candidates.floating.FloatingCandidatesMode
 import org.fcitx.fcitx5.android.input.candidates.floating.FloatingCandidatesOrientation
@@ -140,6 +141,13 @@ class AppPrefs(private val sharedPreferences: SharedPreferences) {
             R.string.keep_keyboard_letters_uppercase,
             "keep_keyboard_letters_uppercase",
             false
+        )
+        val inputUiFont = dynamicStringList(
+            R.string.input_ui_font_family,
+            "input_ui_font",
+            InputUiFont.SystemDefaultValue,
+            InputUiFont::customFontPreferenceEntries,
+            R.string.input_ui_font_summary
         )
 
         val showVoiceInputButton =
@@ -337,9 +345,9 @@ class AppPrefs(private val sharedPreferences: SharedPreferences) {
             int(R.string.candidates_bubble_gap, "candidates_bubble_gap", 4, 0, 24, "dp")
         val candidateItemSpacing =
             int(R.string.candidates_item_spacing, "candidates_item_spacing", 4, 0, 16, "dp")
-        /** First/second row height as percentage of candidate row height (50–90%). */
-        val smallRowHeightPercent =
-            int(R.string.candidates_small_row_percent, "candidates_small_row_percent", 64, 50, 90, "%")
+        /** T9 compact top rows as percentage of the lower Hanzi candidate row height (50–90%). */
+        val t9TopBottomRowRatioPercent =
+            int(R.string.candidates_t9_top_bottom_row_ratio, "candidates_small_row_percent", 82, 50, 90, "%")
 
         val t9HanziCharacterBudget =
             int(R.string.candidates_t9_hanzi_character_budget, "candidates_t9_hanzi_character_budget", 10, 4, 24)

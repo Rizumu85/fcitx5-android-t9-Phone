@@ -149,7 +149,7 @@ class PagedCandidatesUi(
                 alignItems = AlignItems.STRETCH
             } else {
                 flexDirection = FlexDirection.ROW
-                alignItems = AlignItems.BASELINE
+                alignItems = if (showShortcutLabels) AlignItems.CENTER else AlignItems.BASELINE
             }
         }
         candidatesAdapter.notifyDataSetChanged()

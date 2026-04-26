@@ -13,6 +13,7 @@ import android.text.TextUtils
 import android.view.View
 import org.fcitx.fcitx5.android.R
 import org.fcitx.fcitx5.android.data.theme.Theme
+import org.fcitx.fcitx5.android.input.InputUiFont
 import org.fcitx.fcitx5.android.input.keyboard.CustomGestureView
 import splitties.dimensions.dp
 import splitties.resources.drawable
@@ -37,6 +38,7 @@ class ClipboardEntryUi(override val ctx: Context, private val theme: Theme, radi
         minLines = 1
         maxLines = 4
         textSize = 14f
+        InputUiFont.applyTo(this)
         setPaddingDp(8, 4, 8, 4)
         ellipsize = TextUtils.TruncateAt.END
         setTextColor(theme.keyTextColor)

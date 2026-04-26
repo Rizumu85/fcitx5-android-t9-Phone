@@ -8,8 +8,54 @@ controls, and a readable keyboard surface.
 
 ## Current Task Design
 
-Correct Chinese T9 numeric shortcuts so the bottom candidate row owns shortcut
-labels and long-press selection. The pinyin filter row remains text-only.
+Set the T9 top/bottom row ratio default to 82.
+
+## T9 Candidate Layout Design
+
+Keep the current single integer preference value and storage key so existing
+settings migrate without conversion. Rename the code-facing accessor and UI
+string around the model that users see: `T9 top/bottom row height ratio`.
+
+Interpret the value as the compact top-row height percentage relative to the
+lower Hanzi candidate row. The preedit row and pinyin filter row continue to use
+the same compact height, while the Hanzi row remains the baseline. Add a small
+2dp bottom margin to the pinyin filter row only when it is visible.
+Use 82 as the default for new installs or reset preferences while preserving the
+existing stored key so current users keep their chosen value.
+
+Return-key pinyin commit already works for normal tap input. Do not change the
+Return/candidate-confirm key routing in this step.
+
+## IME Font Design
+
+Add one dynamic string-list preference under the virtual keyboard settings. The
+first entry is `System default`, which keeps Android's currently active default
+font. The rest are custom font files found in user-visible font folders.
+
+Keep the setting scoped to the input method UI. It should not affect app
+settings screens, logs, or unrelated Android UI. A shared helper should expose
+`Typeface` resolution and an `applyTo(TextView, style)` function so all IME
+text surfaces use the same choice while preserving per-key bold/normal styles.
+
+Always create and scan the app data `fonts` folder under the app's external
+files root. Also scan the primary storage `Fonts` folder as a best-effort
+convenience for devices/file managers that expose it to the app. Load selected
+custom fonts with `Typeface.createFromFile`; if loading fails, fall back to the
+system default.
+Label font entries with explicit source names: app data `fonts` or public
+`Fonts`. Do not create or scan an app data `Fonts` alias, because it duplicates
+the supported app-local `fonts` folder.
+When `inputUiFont` changes, recreate both `InputView` and `CandidatesView`.
+Existing text views do not observe typeface changes after construction, so a
+full IME view replacement is the simplest consistent refresh path and matches
+how theme changes already refresh the keyboard and candidate surfaces.
+T9 pinyin filter chips are part of the IME candidate/preedit surface even
+though they are rendered by a small RecyclerView adapter. They must also apply
+the shared `InputUiFont` helper when their `TextView`s are created.
+
+Do not request broad storage permissions for this step. If public `Fonts` is
+not readable on a scoped-storage device, the app data `fonts` folder remains
+the supported path.
 
 ## Theme Preset Design
 
@@ -219,6 +265,20 @@ item.
 Show numeric shortcut labels only on the bottom candidate row: Hanzi candidates
 while Chinese T9 composition is active, and local punctuation candidates while
 punctuation is pending. Do not show numeric prefixes on the pinyin filter row.
+Render those shortcut labels as a very small second line under the candidate
+text, not as inline prefixes. This preserves horizontal room for 10 budgeted
+T9 candidates on small screens while keeping long-press discoverability.
+Keep enough vertical separation between the candidate glyph and the shortcut
+line for Latin descenders and emoji bounds; shortcut labels may sit lower than
+typographic center as long as the candidate row remains compact.
+For shortcut-label candidates, use an explicit centered text alignment and a
+small minimum cell width. This stabilizes symbol/punctuation candidates whose
+glyph side bearings or bidi-neutral characters otherwise make them appear
+uneven, while preserving the centered Hanzi appearance.
+Chinese/full-width symbol surfaces should prefer Chinese quote marks:
+double quotes `“”` and single quotes `‘’`. Keep straight ASCII quotes available
+only later in the general symbol set, not as the first visible quote choice in
+Chinese-oriented symbol pages.
 Long-pressing a physical digit should select the matching visible bottom-row
 candidate. For physical Chinese T9 `2`-`9`, consume key-down locally and send
 the digit to Rime only on key-up when no long press was detected. This avoids

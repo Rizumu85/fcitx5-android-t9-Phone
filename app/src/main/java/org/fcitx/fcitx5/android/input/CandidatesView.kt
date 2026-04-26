@@ -71,7 +71,7 @@ class CandidatesView(
     private val horizontalMargin by candidatesPrefs.horizontalMargin
     private val bubbleGap by candidatesPrefs.bubbleGap
     private val candidateItemSpacing by candidatesPrefs.candidateItemSpacing
-    private val smallRowHeightPercent by candidatesPrefs.smallRowHeightPercent
+    private val t9TopBottomRowRatioPercent by candidatesPrefs.t9TopBottomRowRatioPercent
     private val t9HanziCharacterBudget by candidatesPrefs.t9HanziCharacterBudget
 
     private var inputPanel = FcitxEvent.InputPanelEvent.Data()
@@ -109,6 +109,7 @@ class CandidatesView(
 
     private val setupTextView: TextView.() -> Unit = {
         textSize = fontSize.toFloat()
+        InputUiFont.applyTo(this)
         val v = dp(itemPaddingVertical)
         val h = dp(itemPaddingHorizontal)
         setPadding(h, v, h, v)
@@ -117,14 +118,16 @@ class CandidatesView(
     /** Third row (candidates) use candidate font size setting as-is. */
     private val setupTextViewCandidates: TextView.() -> Unit = {
         textSize = fontSize.toFloat().coerceAtLeast(1f)
+        InputUiFont.applyTo(this)
         val v = dp(itemPaddingVertical)
         val h = dp(itemPaddingHorizontal)
         setPadding(h, v, h, v)
     }
 
-    /** Same as setupTextView but with smaller font for first row; line height fills row so descenders not clipped. */
+    /** Same as setupTextView but with smaller font for compact top rows; line height fills row so descenders not clipped. */
     private val setupTextViewSmallRow: TextView.() -> Unit = {
-        textSize = smallRowFontSizeSp
+        textSize = compactTopRowFontSizeSp
+        InputUiFont.applyTo(this)
         val v = dp(itemPaddingVertical)
         val h = dp(itemPaddingHorizontal)
         setPadding(h, v, h, v)
@@ -196,7 +199,7 @@ class CandidatesView(
     private val pinyinBarAdapter by lazy {
         T9PinyinChipAdapter(
             theme = theme,
-            textSizeSp = smallRowFontSizeSp,
+            textSizeSp = compactTopRowFontSizeSp,
             horizontalPaddingPx = dpCandidates(itemPaddingHorizontal),
             verticalPaddingPx = dpCandidates(itemPaddingVertical),
             rowHeightPx = pinyinBarRowHeightPx,
@@ -247,7 +250,7 @@ class CandidatesView(
 
     private fun dpCandidates(value: Int): Int = (value * ctx.resources.displayMetrics.density).toInt()
 
-    /** Height of one candidate row (one line), used as the "11" in 6:6:11. */
+    /** Height of one lower Hanzi candidate row. Compact top rows are a ratio of this baseline. */
     private val oneCandidateRowHeightPx: Int
         get() {
             val dm = ctx.resources.displayMetrics
@@ -255,13 +258,18 @@ class CandidatesView(
             return linePx + 2 * dpCandidates(itemPaddingVertical)
         }
 
-    /** First row: height = candidate row × smallRowHeightPercent%. */
-    private val preeditRowHeightPx: Int get() = oneCandidateRowHeightPx * smallRowHeightPercent / 100
-    /** Second row: same as first. */
-    private val pinyinBarRowHeightPx: Int get() = oneCandidateRowHeightPx * smallRowHeightPercent / 100
+    private val compactTopRowHeightPx: Int
+        get() = oneCandidateRowHeightPx * t9TopBottomRowRatioPercent / 100
 
-    /** Font size for first/second row (6/11 of candidate row) so text fits. */
-    private val smallRowFontSizeSp: Float get() = fontSize * 6f / 11f
+    /** First compact row: preedit/pinyin preview. */
+    private val preeditRowHeightPx: Int get() = compactTopRowHeightPx
+    /** Second compact row: pinyin filter chips. */
+    private val pinyinBarRowHeightPx: Int get() = compactTopRowHeightPx
+
+    /** Font size for compact top rows so text fits even when the height ratio is small. */
+    private val compactTopRowFontSizeSp: Float get() = fontSize * 6f / 11f
+
+    private val pinyinToHanziGapPx: Int get() = dp(T9_PINYIN_TO_HANZI_GAP_DP)
 
     /** Vertical container for the two bubbles (first row; second+third rows). */
     private val contentWrapper = LinearLayout(ctx).apply {
@@ -1045,8 +1053,10 @@ class CandidatesView(
 
     private fun setPinyinRowHeight(height: Int) {
         (pinyinRowWrapper.layoutParams as? LinearLayout.LayoutParams)?.let { params ->
-            if (params.height != height) {
+            val bottomMargin = if (height > 0) pinyinToHanziGapPx else 0
+            if (params.height != height || params.bottomMargin != bottomMargin) {
                 params.height = height
+                params.bottomMargin = bottomMargin
                 pinyinRowWrapper.layoutParams = params
             }
         }
@@ -1187,7 +1197,10 @@ class CandidatesView(
         bubble2Wrapper.addView(pinyinRowWrapper, LinearLayout.LayoutParams(
             0,
             pinyinBarRowHeightPx
-        ).apply { gravity = Gravity.START or Gravity.TOP })
+        ).apply {
+            gravity = Gravity.START or Gravity.TOP
+            bottomMargin = pinyinToHanziGapPx
+        })
         bubble2Wrapper.addView(candidateRowWrapper, LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.WRAP_CONTENT,
             LinearLayout.LayoutParams.WRAP_CONTENT
@@ -1275,5 +1288,6 @@ class CandidatesView(
 
     companion object {
         private const val T9_BULK_FILTER_LIMIT = 80
+        private const val T9_PINYIN_TO_HANZI_GAP_DP = 2
     }
 }

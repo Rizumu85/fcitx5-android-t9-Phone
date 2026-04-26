@@ -211,6 +211,8 @@
     <string name="horizontal_candidate_auto_fill">Fill width on demand</string>
     <string name="horizontal_candidate_always_fill">Always fill width</string>
     <string name="inline_suggestions">Show inline autofill suggestions</string>
+    <string name="input_ui_font_family">Input UI font</string>
+    <string name="input_ui_font_summary">Put .ttf, .otf, or .ttc files in the app data fonts folder. The public storage Fonts folder is also scanned when Android allows it.</string>
     <string name="delete_all_except_pinned">Delete all items except pinned ones?</string>
     <string name="num_items_deleted">%1$d item(s) deleted</string>
     <string name="delete_theme">Delete Theme</string>
@@ -290,6 +292,7 @@
     <string name="candidates_bubble_gap">Gap between two bubbles</string>
     <string name="candidates_item_spacing">Spacing between candidate items</string>
     <string name="candidates_small_row_percent">First/second row height (% of candidate row)</string>
+    <string name="candidates_t9_top_bottom_row_ratio">T9 top/bottom row height ratio</string>
     <string name="candidates_t9_hanzi_character_budget">T9 Hanzi row character budget</string>
     <string name="restart_fcitx_instance">Restart fcitx instance</string>
     <string name="restart_fcitx_instance_confirm">Fcitx instance will be destroyed and reinitialized. Proceed?</string>

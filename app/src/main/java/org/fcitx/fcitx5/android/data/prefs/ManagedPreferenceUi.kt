@@ -70,6 +70,50 @@ abstract class ManagedPreferenceUi<T : Preference>(
         }
     }
 
+    class DynamicStringList(
+        @StringRes
+        val title: Int,
+        key: String,
+        val defaultValue: String,
+        val entriesSource: (Context) -> List<Pair<String, CharSequence>>,
+        @StringRes
+        val summary: Int? = null,
+        enableUiOn: (() -> Boolean)? = null
+    ) : ManagedPreferenceUi<ListPreference>(key, enableUiOn) {
+        override fun createUi(context: Context) = ListPreference(context).apply {
+            key = this@DynamicStringList.key
+            isIconSpaceReserved = false
+            isSingleLineTitle = false
+            setDefaultValue(defaultValue)
+            setTitle(this@DynamicStringList.title)
+            setDialogTitle(this@DynamicStringList.title)
+            refreshDynamicEntries(context)
+            setOnPreferenceClickListener {
+                refreshDynamicEntries(context)
+                false
+            }
+            summaryProvider = Preference.SummaryProvider<ListPreference> { preference ->
+                val selected = if (preference.entryValues.includes(preference.value)) {
+                    preference.entry?.toString().orEmpty()
+                } else {
+                    context.getString(R.string._not_available_)
+                }
+                val summaryRes = this@DynamicStringList.summary
+                if (summaryRes != null) {
+                    "$selected\n${context.getString(summaryRes)}"
+                } else {
+                    selected
+                }
+            }
+        }
+
+        private fun ListPreference.refreshDynamicEntries(context: Context) {
+            val entries = entriesSource(context)
+            entryValues = entries.map { it.first }.toTypedArray()
+            this.entries = entries.map { it.second }.toTypedArray()
+        }
+    }
+
     class VoiceInputList(
         @StringRes
         val title: Int,

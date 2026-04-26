@@ -78,6 +78,25 @@ abstract class ManagedPreferenceCategory(
         return pref
     }
 
+    protected fun dynamicStringList(
+        @StringRes
+        title: Int,
+        key: String,
+        defaultValue: String,
+        entriesSource: (android.content.Context) -> List<Pair<String, CharSequence>>,
+        @StringRes
+        summary: Int? = null,
+        enableUiOn: (() -> Boolean)? = null
+    ): ManagedPreference.PString {
+        val pref = ManagedPreference.PString(sharedPreferences, key, defaultValue)
+        val ui = ManagedPreferenceUi.DynamicStringList(
+            title, key, defaultValue, entriesSource, summary, enableUiOn
+        )
+        pref.register()
+        ui.registerUi()
+        return pref
+    }
+
     protected fun int(
         @StringRes
         title: Int,

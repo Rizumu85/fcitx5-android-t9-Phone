@@ -7,6 +7,7 @@ package org.fcitx.fcitx5.android.input.clipboard
 import android.content.Context
 import org.fcitx.fcitx5.android.R
 import org.fcitx.fcitx5.android.data.theme.Theme
+import org.fcitx.fcitx5.android.input.InputUiFont
 import splitties.dimensions.dp
 import splitties.resources.drawable
 import splitties.views.dsl.constraintlayout.below
@@ -32,12 +33,14 @@ sealed class ClipboardInstructionUi(override val ctx: Context, protected val the
 
         private val instructionText = textView {
             setText(R.string.instruction_enable_clipboard_listening)
+            InputUiFont.applyTo(this)
             setPaddingDp(12, 8, 12, 8)
             setTextColor(theme.keyTextColor)
         }
 
         val enableButton = androidStyles.button.borderless {
             setText(R.string.clipboard_enable)
+            InputUiFont.applyTo(this)
             setTextColor(theme.accentKeyBackgroundColor)
         }
 
@@ -64,6 +67,7 @@ sealed class ClipboardInstructionUi(override val ctx: Context, protected val the
 
         private val instructionText = textView {
             setText(R.string.instruction_copy)
+            InputUiFont.applyTo(this)
             setTextColor(theme.keyTextColor)
         }
 

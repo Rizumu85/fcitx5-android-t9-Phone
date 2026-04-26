@@ -2,12 +2,65 @@
 
 ## Current Task
 
-Correct the physical numeric shortcut behavior for Chinese T9 candidate
-selection: shortcut labels belong on the Hanzi candidate row, not the pinyin
-filter row, and long-press digits should select bottom-row candidates instead
-of inserting long-press numbers during active pinyin composition. Short physical
-`2`-`9` presses should send their digit on key-up so long press can be detected
-before any digit reaches Rime.
+Adjust the T9 top/bottom row height ratio default.
+
+## T9 Candidate Layout Request
+
+- Follow-up: set the default T9 top/bottom row height ratio to 82. Existing
+  user-set values should stay untouched because the stored preference key is
+  unchanged.
+- The pinyin filter row and Hanzi candidate row currently sit close together
+  inside the second bubble. Add a small vertical gap only while the pinyin row
+  is visible, so the Hanzi-only state stays compact.
+- The existing setting label describes "first/second row height" as a percent
+  of candidate row height. That is technically accurate for the preedit and
+  pinyin rows, but it is harder to reason about from the visible T9 UI.
+- Keep the stored preference key compatible with existing users, but expose and
+  name the setting as a T9 top/bottom row height ratio: the top compact rows are
+  measured as a percentage of the lower Hanzi candidate row.
+
+## T9 Return Pinyin Commit Request
+
+- User correction: tap Return already commits the predicted pinyin correctly.
+  The earlier report came from long-pressing Enter, so no Return-path refactor
+  is needed for this step.
+
+## IME Font Request
+
+- The user wants the input method itself to be able to use a preferred font
+  because their phone cannot change fonts globally.
+- A full custom TTF/OTF import flow would need a file picker, persistent storage
+  or copying into the app directory, validation, and fallback behavior. That is
+  bigger than the current small testable step.
+- Follow-up: system font switching did not visibly refresh in the IME, and raw
+  system font lists contain many near-duplicates for language/region, TTC index,
+  weight, and italic variants. Replace the system-font picker with a simpler
+  custom-font folder picker.
+- Default should be the system default font already used by the device. Users
+  can place `.ttf`, `.otf`, or `.ttc` files in the app data `fonts` folder, and
+  the IME font preference should list those files as custom fonts.
+- The app should scan app data `fonts` as the supported custom-font folder and
+  public storage `Fonts` as a best-effort convenience. Do not also create an
+  app data `Fonts` folder because it duplicates the app-local path and confuses
+  the setting labels.
+- Bug report: switching from one custom font to another does not refresh all
+  visible IME text until the user switches away to another input method and
+  returns. Root cause: text views apply the font only when they are created, but
+  `inputUiFont` changes did not recreate the input/candidate views. Font
+  preference changes should use the same full input-view replacement path as
+  theme changes.
+- Bug report: the T9 pinyin preview/filter chips still appear to use the
+  platform font after selecting a custom IME font. Most candidate/preedit text
+  is already routed through `InputUiFont`, but `T9PinyinChipAdapter` creates raw
+  `TextView` chips and needs to apply the shared font helper too.
+- Add Simplified and Traditional Chinese translations for the new font settings
+  so the visible settings UI is localized with the rest of the keyboard options.
+- Apply the selected font to the visible IME text surfaces: virtual keyboard key
+  labels, candidate/preedit rows, horizontal candidates, and transient mode
+  badges.
+- Android font fallback can still make some Hanzi or emoji glyphs come from the
+  platform CJK/emoji fonts. A later embedded or imported CJK font can reuse the
+  same shared font helper.
 
 ## Theme Color Request
 
@@ -126,6 +179,23 @@ before any digit reaches Rime.
 - Feature correction: numeric shortcut labels and long-press shortcut selection
   should apply to the Hanzi candidate row, not the pinyin filter row. The pinyin
   filter row should remain text-only.
+- Visual follow-up: the numeric shortcut labels are still too wide on small
+  phones because they sit beside each Hanzi/symbol candidate. To fit the
+  10-candidate budget more comfortably, make shortcut labels smaller and move
+  them below the candidate text instead of before or after it.
+- Visual follow-up: the second-line shortcut labels can sit too close to
+  English descenders or emoji glyph bounds. Move the shortcut labels slightly
+  lower with extra line spacing so they do not overlap the candidate text.
+- Visual follow-up: symbols with shortcut labels can look inconsistently left
+  or right aligned even when Hanzi candidates look centered. Symbol glyph
+  bounds and neutral punctuation directionality vary more than Hanzi glyphs, so
+  shortcut candidates need a small stable cell width and explicit centered text
+  alignment.
+- Punctuation follow-up: T9 Chinese punctuation already includes Chinese curly
+  double and single quotes, but the symbol picker still exposes straight ASCII
+  quotes early in the general punctuation page, and the full-width Chinese page
+  lacks curly double quotes. Prefer Chinese quote symbols in Chinese/full-width
+  symbol contexts.
 - Long-pressing physical digits during active Chinese T9 composition should
   select the corresponding visible Hanzi candidate and cancel the digit-display
   path that would otherwise insert the long-pressed number. The local

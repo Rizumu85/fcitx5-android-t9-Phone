@@ -12,6 +12,7 @@ import android.graphics.drawable.RippleDrawable
 import android.graphics.drawable.StateListDrawable
 import androidx.annotation.DrawableRes
 import org.fcitx.fcitx5.android.data.theme.Theme
+import org.fcitx.fcitx5.android.input.InputUiFont
 import org.fcitx.fcitx5.android.input.keyboard.CustomGestureView
 import org.fcitx.fcitx5.android.input.keyboard.shadowedKeyBackgroundDrawable
 import org.fcitx.fcitx5.android.input.keyboard.insetRadiusDrawable
@@ -78,6 +79,7 @@ class TextEditingButton(
         isClickable = false
         isFocusable = false
         background = null
+        InputUiFont.applyTo(this)
         setTextColor(if (altStyle) theme.altKeyTextColor else theme.keyTextColor)
     }
 

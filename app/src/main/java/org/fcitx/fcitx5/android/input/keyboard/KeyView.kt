@@ -29,6 +29,7 @@ import org.fcitx.fcitx5.android.data.theme.Theme
 import org.fcitx.fcitx5.android.data.theme.ThemeManager
 import org.fcitx.fcitx5.android.data.theme.ThemePrefs.PunctuationPosition
 import org.fcitx.fcitx5.android.input.AutoScaleTextView
+import org.fcitx.fcitx5.android.input.InputUiFont
 import org.fcitx.fcitx5.android.input.keyboard.KeyDef.Appearance.Border
 import org.fcitx.fcitx5.android.input.keyboard.KeyDef.Appearance.Variant
 import org.fcitx.fcitx5.android.utils.styledFloat
@@ -265,8 +266,7 @@ open class TextKeyView(ctx: Context, theme: Theme, def: KeyDef.Appearance.Text) 
         text = def.displayText
         setTextSize(TypedValue.COMPLEX_UNIT_DIP, def.textSize)
         textDirection = View.TEXT_DIRECTION_FIRST_STRONG_LTR
-        // keep original typeface, apply textStyle only
-        setTypeface(typeface, def.textStyle)
+        InputUiFont.applyTo(this, def.textStyle)
         setTextColor(
             if (def.viewId == R.id.button_space) {
                 if (isDarkColor(theme.spaceBarColor)) Color.WHITE else Color.BLACK
@@ -297,7 +297,7 @@ class AltTextKeyView(ctx: Context, theme: Theme, def: KeyDef.Appearance.AltText)
         isFocusable = false
         // TODO hardcoded alt text size
         setTextSize(TypedValue.COMPLEX_UNIT_DIP, 10.666667f)
-        setTypeface(typeface, Typeface.BOLD)
+        InputUiFont.applyTo(this, Typeface.BOLD)
         text = def.altText
         textDirection = View.TEXT_DIRECTION_FIRST_STRONG_LTR
         setTextColor(

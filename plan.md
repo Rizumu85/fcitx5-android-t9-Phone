@@ -6,6 +6,31 @@ Rizum Guidelines are active for this project/thread until the user says otherwis
 
 ## Current Checklist
 
+- [x] Document the IME-local font customization scope.
+- [x] Add a keyboard setting that lists fonts available on the current device.
+- [x] Apply the selected font to keyboard labels, candidates, preedit, and mode badges.
+- [x] Run a narrow static diff check for the font-setting changes.
+- [x] Merge duplicate system font entries into font groups.
+- [x] Add a secondary setting for selecting the concrete variant inside a font group.
+- [x] Add Simplified and Traditional Chinese translations for the font settings.
+- [x] Run a narrow Kotlin compile check for the grouped font settings.
+- [x] Replace system-font scanning with custom font-folder scanning.
+- [x] Include app data `fonts` and best-effort public `Fonts` directories.
+- [x] Simplify the font setting back to a single custom-font picker.
+- [x] Run a narrow Kotlin compile check for the custom font-folder change.
+- [x] Make font picker labels distinguish app-local `Fonts` from public `Fonts`.
+- [x] Remove the duplicate app-local `Fonts` alias and keep only app `fonts` plus public `Fonts`.
+- [x] Recreate input and candidate views when the custom font preference changes.
+- [x] Run a narrow Kotlin compile check for the font refresh fix.
+- [x] Apply the selected IME font to T9 pinyin preview/filter chips.
+- [x] Run a narrow static and Kotlin compile check for the pinyin chip font fix.
+- [x] Document the T9 pinyin/Hanzi row spacing and ratio-setting simplification.
+- [x] Add a small visible-only gap between the pinyin filter row and Hanzi row.
+- [x] Rename the exposed row-height setting as a T9 top/bottom row ratio while keeping stored preferences compatible.
+- [x] Run a narrow static and Kotlin compile check for the candidate layout setting change.
+- [x] Change the T9 top/bottom row ratio default to 82.
+- [x] Keep existing tap-Return pinyin commit behavior unchanged after the user correction.
+- [x] Run a narrow static check for the ratio default change.
 - [x] Document the two requested mockup-based built-in themes.
 - [x] Add the two theme presets in `ThemePreset.kt`.
 - [x] Register the new presets in `ThemeManager.BuiltinThemes`.
@@ -85,6 +110,15 @@ Rizum Guidelines are active for this project/thread until the user says otherwis
 - [x] Add small numeric shortcut labels to the T9 pinyin row and local punctuation list.
 - [x] Handle long-press number selection for focused pinyin options and pending punctuation options.
 - [x] Run a narrow static diff check for the numeric shortcut change.
+- [x] Move T9 bottom-row shortcut labels below candidate text and reduce their visual footprint.
+- [x] Center compact shortcut-label candidates without widening the row.
+- [x] Run a narrow static diff check for shortcut-label layout.
+- [x] Lower the second-line shortcut labels to avoid English/emoji overlap.
+- [x] Run a narrow static diff check for shortcut-label vertical spacing.
+- [x] Stabilize symbol shortcut candidate alignment with centered text and a compact minimum cell width.
+- [x] Run a narrow static diff check for symbol shortcut alignment.
+- [x] Prefer Chinese curly quote marks in symbol picker punctuation/full-width pages.
+- [x] Run a narrow static diff check for Chinese quote symbol ordering.
 - [x] Move numeric shortcut labels from the pinyin filter row to the Hanzi/punctuation candidate row.
 - [x] Route Chinese T9 long-press digit shortcuts to bottom-row Hanzi selection and cancel digit output.
 - [x] Run a narrow static diff check for the corrected shortcut behavior.

@@ -8,6 +8,7 @@ import android.content.Context
 import android.text.TextUtils
 import org.fcitx.fcitx5.android.R
 import org.fcitx.fcitx5.android.data.theme.Theme
+import org.fcitx.fcitx5.android.input.InputUiFont
 import org.fcitx.fcitx5.android.input.keyboard.CustomGestureView
 import org.fcitx.fcitx5.android.utils.rippleDrawable
 import splitties.dimensions.dp
@@ -42,6 +43,7 @@ class ClipboardSuggestionUi(override val ctx: Context, private val theme: Theme)
     val text = textView {
         isSingleLine = true
         maxWidth = dp(120)
+        InputUiFont.applyTo(this)
         ellipsize = TextUtils.TruncateAt.END
         setTextColor(theme.altKeyTextColor)
     }

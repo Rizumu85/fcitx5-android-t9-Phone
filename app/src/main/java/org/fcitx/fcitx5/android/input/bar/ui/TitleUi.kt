@@ -10,6 +10,7 @@ import android.view.View
 import androidx.core.view.isVisible
 import org.fcitx.fcitx5.android.R
 import org.fcitx.fcitx5.android.data.theme.Theme
+import org.fcitx.fcitx5.android.input.InputUiFont
 import splitties.dimensions.dp
 import splitties.views.dsl.constraintlayout.after
 import splitties.views.dsl.constraintlayout.bottomOfParent
@@ -34,7 +35,7 @@ class TitleUi(override val ctx: Context, theme: Theme) : Ui {
     }
 
     private val titleText = textView {
-        typeface = Typeface.defaultFromStyle(Typeface.BOLD)
+        InputUiFont.applyTo(this, Typeface.BOLD)
         setTextColor(theme.altKeyTextColor)
         gravity = gravityVerticalCenter
         textSize = 16f

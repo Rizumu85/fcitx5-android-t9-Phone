@@ -118,7 +118,7 @@ class InputView(
         minimumHeight = dp(26)
         setPadding(dp(8), 0, dp(8), 0)
         setTextSize(TypedValue.COMPLEX_UNIT_DIP, 20f)
-        setTypeface(typeface, Typeface.BOLD)
+        InputUiFont.applyTo(this, Typeface.BOLD)
         setTextColor(theme.accentKeyTextColor)
         background = GradientDrawable().apply {
             shape = GradientDrawable.RECTANGLE
