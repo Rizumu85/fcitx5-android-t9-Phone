@@ -8,8 +8,15 @@ controls, and a readable keyboard surface.
 
 ## Current Task Design
 
-Add physical OK-key selection mode and keep the T9 top/bottom row ratio default
-at 82.
+Update the README as a user guide for the current feature set.
+
+## README Design
+
+Keep the README additions concise and user-facing. Use tables for physical-key
+shortcuts and short bullets for optional features. Mention behavior only at the
+level a user can test on a phone: what to press, what appears, and what gets
+committed. Do not include internal architecture, implementation names, or bug
+history.
 
 ## Physical OK Selection Design
 
@@ -218,12 +225,12 @@ unchanged.
 
 ## Release Version Design
 
-Label this release as `2.0.0`. Gradle's actual `versionName` is resolved from
+Label this release as `3.0.0`. Gradle's actual `versionName` is resolved from
 `BUILD_VERSION_NAME`/`buildVersionName`, then `git describe`, then
 `Versions.baseVersionName`, so set the committed `buildVersionName` override and
-the fallback base version name to the same value. Keep the already incremented
-`baseVersionCode` so APK updates remain installable, and keep the matching
-ABI-derived Play release note file.
+the fallback base version name to the same value. Increase `baseVersionCode` so
+APK updates remain installable, and keep a matching ABI-derived Play release
+note file.
 
 ## Pending Physical-Key Behavior Design
 

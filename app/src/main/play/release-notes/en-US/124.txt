@@ -1,0 +1,13 @@
+# 3.0.0 - T9 Phone Input Polish
+
+## Highlights
+
+- Add physical-key selection mode with copy, cut, paste, and delete actions
+- Add number-mode operator shortcuts with expression results for `=` and `≈`
+- Add custom font loading for the input method UI
+
+## Bug fixes
+
+- Improve Chinese T9 pinyin segmentation, preview, and Hanzi shortcut behavior
+- Keep Chinese T9 punctuation and symbol quote handling consistent
+- Refactor transient input panels and number-mode logic for safer maintenance

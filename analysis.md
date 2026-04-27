@@ -2,7 +2,17 @@
 
 ## Current Task
 
-Review and tighten the completed global feature set before final consolidation.
+Update the user-facing README with the newly added input modes and shortcuts.
+
+## README User Documentation Update
+
+- The README is currently written as an end-user Chinese guide. Keep that style
+  for this edit so the new content fits the existing document.
+- Document only features users can operate: Chinese T9 candidate shortcuts and
+  segmentation, number-mode operator/result shortcuts, physical OK selection
+  mode, custom fonts, and new themes.
+- Avoid internal implementation details, bug-fix history, parser internals, or
+  refactoring notes.
 
 ## Global Feature Review Follow-Up
 
@@ -309,6 +319,11 @@ Review and tighten the completed global feature set before final consolidation.
 
 ## Pending Physical-Key Requests
 
+- Release update: bump the app release label from `2.0.0` to `3.0.0`. The
+  actual Gradle `versionName` comes from `gradle.properties` `buildVersionName`,
+  while `Versions.baseVersionName` is the fallback/native project version.
+  Increase `baseVersionCode` as well so ABI-derived APK version codes are
+  installable over the 2.0.0 build.
 - Release follow-up correction: the user wants this batch labeled as `2.0.0`,
   not `0.1.3`. The earlier edit touched the fallback base version but missed
   that Gradle normally derives `versionName` from `buildVersionName` or

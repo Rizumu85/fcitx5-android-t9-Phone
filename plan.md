@@ -6,6 +6,10 @@ Rizum Guidelines are active for this project/thread until the user says otherwis
 
 ## Current Checklist
 
+- [x] Update README user-facing key tables for new Chinese, number, and selection shortcuts.
+- [x] Add README user-facing notes for themes and custom fonts.
+- [x] Bump app version metadata to `3.0.0`.
+- [x] Add matching Play release notes for the new ABI-derived version code.
 - [x] Extract `InputView` transient selection/number panels into dedicated view helpers.
 - [x] Extract number-mode operator/result-choice state behind callbacks.
 - [ ] Then extract physical selection state/actions behind callbacks.
