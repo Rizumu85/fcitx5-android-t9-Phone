@@ -167,7 +167,7 @@ class StatusAreaWindow : InputWindow.ExtendedInputWindow<StatusAreaWindow>(),
             if (!keyBorder) {
                 backgroundColor = theme.barColor
             }
-            layoutManager = gridLayoutManager(4)
+            layoutManager = gridLayoutManager(5)
             adapter = this@StatusAreaWindow.adapter
         }
     }

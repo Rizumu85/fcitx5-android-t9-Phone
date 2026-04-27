@@ -24,7 +24,9 @@ import splitties.views.dsl.constraintlayout.below
 import splitties.views.dsl.constraintlayout.centerHorizontally
 import splitties.views.dsl.constraintlayout.centerOn
 import splitties.views.dsl.constraintlayout.constraintLayout
+import splitties.views.dsl.constraintlayout.endOfParent
 import splitties.views.dsl.constraintlayout.lParams
+import splitties.views.dsl.constraintlayout.startOfParent
 import splitties.views.dsl.constraintlayout.topOfParent
 import splitties.views.dsl.core.Ui
 import splitties.views.dsl.core.add
@@ -60,6 +62,7 @@ class StatusAreaEntryUi(override val ctx: Context, private val theme: Theme) : U
         textSize = 12f
         InputUiFont.applyTo(this)
         gravity = gravityCenter
+        maxLines = 2
         setTextColor(theme.keyTextColor)
     }
 
@@ -76,9 +79,10 @@ class StatusAreaEntryUi(override val ctx: Context, private val theme: Theme) : U
             add(textIcon, lParams(wrapContent, wrapContent) {
                 centerOn(bkg)
             })
-            add(label, lParams(wrapContent, wrapContent) {
+            add(label, lParams(0, wrapContent) {
                 below(bkg, dp(6))
-                centerHorizontally()
+                startOfParent(dp(2))
+                endOfParent(dp(2))
             })
         }
 

@@ -6,6 +6,12 @@ Rizum Guidelines are active for this project/thread until the user says otherwis
 
 ## Current Checklist
 
+- [x] Constrain in-IME status/settings labels to each grid cell width.
+- [x] Allow compact centered wrapping for crowded five-column labels.
+- [x] Run a narrow static diff check for the label wrapping tweak.
+- [x] Restore the regular virtual keyboard portrait height default to 40%.
+- [x] Make the in-IME status/settings option grid use five columns.
+- [x] Run a narrow static diff check for the default/layout tweak.
 - [x] Update README user-facing key tables for new Chinese, number, and selection shortcuts.
 - [x] Add README user-facing notes for themes and custom fonts.
 - [x] Bump app version metadata to `3.0.0`.

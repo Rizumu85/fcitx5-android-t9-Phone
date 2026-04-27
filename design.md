@@ -8,7 +8,23 @@ controls, and a readable keyboard surface.
 
 ## Current Task Design
 
-Update the README as a user guide for the current feature set.
+Keep the in-IME status/settings grid at five columns while making option labels
+wrap within each grid cell.
+
+## Virtual Keyboard Settings Design
+
+Keep the existing preference key and range for the regular virtual keyboard
+height. Only change the default portrait value back to 40 so existing user
+overrides remain untouched.
+
+Keep the status/settings panel data and actions unchanged. Only increase the
+RecyclerView grid span count from four to five so the compact option cells can
+share one row when five entries are visible.
+
+For each status/settings cell, keep the icon geometry unchanged, but constrain
+the label to the parent cell width with small horizontal padding. Allow up to
+two centered lines so Chinese and English labels wrap early instead of
+overlapping neighboring cells.
 
 ## README Design
 

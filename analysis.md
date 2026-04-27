@@ -2,7 +2,22 @@
 
 ## Current Task
 
-Update the user-facing README with the newly added input modes and shortcuts.
+Keep the in-IME status/settings option grid at five items per row, but constrain
+each option label so long text wraps inside its cell instead of visually
+crowding adjacent items.
+
+## Virtual Keyboard Settings Follow-Up
+
+- The regular virtual keyboard portrait height default was lowered to 39% in a
+  previous iteration. Restore the default to 40% while leaving landscape and T9
+  keyboard defaults unchanged.
+- The in-IME status/settings panel currently lays out options in four columns.
+  Change it to five columns so five option cells can fit on one row.
+- This is a defaults/layout-only adjustment. Avoid behavior changes to status
+  actions, theme handling, or virtual keyboard launch logic.
+- Follow-up: with five columns, some labels can become visually crowded because
+  the label view uses its natural content width. Constrain labels to the cell
+  width and allow a small number of centered wrapped lines.
 
 ## README User Documentation Update
 
