@@ -197,9 +197,9 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
         }
         val text = when (keyCode) {
             in KeyEvent.KEYCODE_0..KeyEvent.KEYCODE_9 ->
-                (keyCode - KeyEvent.KEYCODE_0).toString()
+                DIGIT_TEXTS[keyCode - KeyEvent.KEYCODE_0]
             in KeyEvent.KEYCODE_NUMPAD_0..KeyEvent.KEYCODE_NUMPAD_9 ->
-                (keyCode - KeyEvent.KEYCODE_NUMPAD_0).toString()
+                DIGIT_TEXTS[keyCode - KeyEvent.KEYCODE_NUMPAD_0]
             KeyEvent.KEYCODE_STAR,
             KeyEvent.KEYCODE_NUMPAD_MULTIPLY -> "*"
             KeyEvent.KEYCODE_POUND -> "#"
@@ -2219,7 +2219,7 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
                     return true
                 } else if (event.repeatCount == 1) {
                     digitLongPressFlags[keyCode] = true
-                    val operator = numberModeController.operatorForKey(keyCode) ?: digit.toString()
+                    val operator = numberModeController.operatorForKey(keyCode) ?: DIGIT_TEXTS[digit]
                     return commitNumberModeOperator(operator)
                 }
                 return true
@@ -2235,7 +2235,7 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
                         // Long press: cancel the pending letter and output digit
                         digitLongPressFlags[keyCode] = true
                         cancelMultiTapChar()
-                        currentInputConnection?.commitText(digit.toString(), 1)
+                        currentInputConnection?.commitText(DIGIT_TEXTS[digit], 1)
                         return true
                     }
                     return true
@@ -2296,7 +2296,7 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
                 if (getT9CompositionKeyCount() > 0) {
                     commitT9HanziShortcutFromLongPress(keyCode)
                 } else {
-                    currentInputConnection?.commitText(digit.toString(), 1)
+                    currentInputConnection?.commitText(DIGIT_TEXTS[digit], 1)
                 }
             }
             return true
@@ -2357,7 +2357,7 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
                 return false // Pass to Rime for T9 input
             } else if (event.repeatCount == 1) {
                 digitLongPressFlags[keyCode] = true
-                currentInputConnection?.commitText(digit.toString(), 1)
+                currentInputConnection?.commitText(DIGIT_TEXTS[digit], 1)
                 return true
             }
             return true
@@ -2423,7 +2423,7 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
                 if (t9PendingPunctuation.isPending) {
                     if (digitLongPressFlags[keyCode] != true) {
                         commitPendingT9Punctuation()
-                        currentInputConnection?.commitText((keyCode - KeyEvent.KEYCODE_0).toString(), 1)
+                        currentInputConnection?.commitText(DIGIT_TEXTS[keyCode - KeyEvent.KEYCODE_0], 1)
                     }
                     digitLongPressFlags[keyCode] = false
                     true
@@ -3448,7 +3448,7 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
                     }
                     T9InputMode.NUMBER -> {
                         if (digitLongPressFlags[keyCode] != true) {
-                            currentInputConnection?.commitText((keyCode - KeyEvent.KEYCODE_0).toString(), 1)
+                            currentInputConnection?.commitText(DIGIT_TEXTS[keyCode - KeyEvent.KEYCODE_0], 1)
                         }
                         digitLongPressFlags[keyCode] = false
                         true
@@ -4031,5 +4031,6 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
         private const val EDITOR_TOUCH_SELECTION_CANCEL_WINDOW_MS = 300L
         private const val EXPLICIT_SELECTION_DELETE_WINDOW_MS = 500L
         private const val SELECTION_REPLACEMENT_KEY_WINDOW_MS = 300L
+        private val DIGIT_TEXTS = arrayOf("0", "1", "2", "3", "4", "5", "6", "7", "8", "9")
     }
 }

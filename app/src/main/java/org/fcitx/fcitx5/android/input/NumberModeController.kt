@@ -146,13 +146,18 @@ class NumberModeController(
     private fun evaluateExpressionBeforeCursor(approximate: Boolean = false): String? {
         val before = getTextBeforeCursor() ?: return null
         val expression = before.takeLastWhile {
-            it.isDigit() || it in setOf('.', '+', '-', '*', '/', '%', '(', ')', ' ', 'π')
+            isExpressionChar(it)
         }.trim()
         if (expression.isBlank() || expression.none { it.isDigit() || it == 'π' }) return null
         return runCatching {
             val value = NumberExpressionParser(expression).parse()
             if (approximate) formatApproximateNumberResult(value) else formatNumberResult(value)
         }.getOrNull()
+    }
+
+    private fun isExpressionChar(char: Char): Boolean = char.isDigit() || when (char) {
+        '.', '+', '-', '*', '/', '%', '(', ')', ' ', 'π' -> true
+        else -> false
     }
 
     private fun formatNumberResult(value: Double): String {

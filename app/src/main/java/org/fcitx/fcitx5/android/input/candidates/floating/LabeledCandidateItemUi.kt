@@ -34,7 +34,9 @@ class LabeledCandidateItemUi(
         alpha = 0
     }
     private var lastActive = false
-    private var lastCandidateSignature = ""
+    private var lastCandidateLabel = ""
+    private var lastCandidateText = ""
+    private var lastCandidateComment = ""
 
     override val root = textView {
         setupTextView(this)
@@ -48,7 +50,6 @@ class LabeledCandidateItemUi(
         t9InputModeEnabled: Boolean = false,
         shortcutLabel: String? = null
     ) {
-        val candidateSignature = "${candidate.label}|${candidate.text}|${candidate.comment}"
         val labelFg = when {
             active -> theme.genericActiveForegroundColor
             inactiveRow -> theme.candidateCommentColor
@@ -107,8 +108,13 @@ class LabeledCandidateItemUi(
                 color(altFg) { append(candidate.comment) }
             }
         }
-        if (candidateSignature != lastCandidateSignature) {
-            lastCandidateSignature = candidateSignature
+        if (candidate.label != lastCandidateLabel ||
+            candidate.text != lastCandidateText ||
+            candidate.comment != lastCandidateComment
+        ) {
+            lastCandidateLabel = candidate.label
+            lastCandidateText = candidate.text
+            lastCandidateComment = candidate.comment
             lastActive = false
             activeBackground.alpha = 0
             root.scaleX = 1f

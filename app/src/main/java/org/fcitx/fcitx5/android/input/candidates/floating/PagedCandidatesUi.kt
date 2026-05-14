@@ -180,10 +180,9 @@ class PagedCandidatesUi(
     }
 
     companion object {
-        private fun shortcutLabelForPosition(position: Int): String? = when (position) {
-            in 0..8 -> (position + 1).toString()
-            9 -> "0"
-            else -> null
-        }
+        private val shortcutLabels = arrayOf("1", "2", "3", "4", "5", "6", "7", "8", "9", "0")
+
+        private fun shortcutLabelForPosition(position: Int): String? =
+            shortcutLabels.getOrNull(position)
     }
 }

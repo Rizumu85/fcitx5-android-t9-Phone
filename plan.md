@@ -703,6 +703,22 @@ Rizum Guidelines are active for this project/thread until the user says otherwis
 - [x] Move floating candidate T9-layout preference reads out of item binding.
 - [x] Run a narrow Kotlin compile check for floating candidate caching.
 - [x] Install and smoke-test the floating candidate caching change on device.
+- [x] Document floating candidate signature allocation removal.
+- [x] Replace bind-time candidate signature strings with direct field comparison.
+- [x] Run a narrow Kotlin compile check for signature allocation removal.
+- [x] Install and smoke-test the signature allocation change on device.
+- [x] Document floating candidate shortcut-label caching.
+- [x] Reuse fixed shortcut-label strings during floating candidate binding.
+- [x] Run a narrow Kotlin compile check for shortcut-label caching.
+- [x] Install and smoke-test the shortcut-label caching change on device.
+- [x] Document number-mode expression predicate allocation removal.
+- [x] Replace the temporary expression-character set with a direct predicate.
+- [x] Run a narrow Kotlin compile check for number-mode predicate optimization.
+- [x] Install and smoke-test the number-mode predicate optimization on device.
+- [x] Document physical digit commit string reuse.
+- [x] Reuse fixed digit strings in physical digit commit paths.
+- [x] Run a narrow Kotlin compile check for physical digit string reuse.
+- [x] Install and smoke-test the physical digit string reuse on device.
 
 ## Password Bottom Row Safety Follow-up
 

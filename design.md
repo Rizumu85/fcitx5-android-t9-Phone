@@ -283,6 +283,18 @@ For floating candidates, keep the cached T9-layout flag in the parent
 The parent already owns binding, orientation, and shortcut-label state, so it
 can pass the flag into `LabeledCandidateItemUi.update()` with no display
 semantic change.
+Within floating candidate item binding, compare candidate label, text, and
+comment directly instead of joining them into a synthetic signature string.
+This preserves highlight-reset behavior while avoiding bind-time allocation.
+Floating candidate shortcut labels should be a constant lookup table. The
+display contract is only `1` through `9` and `0`, so binding should reuse those
+strings rather than constructing them from positions on each refresh.
+Number-mode expression scanning should use a direct character predicate instead
+of a temporary set. The allowed-character contract is small and fixed, and a
+`when` expression keeps the parser allocation-free during prefix extraction.
+For physical digit commit paths, reuse constant digit strings instead of
+constructing single-character strings from calculated digits. Keep this limited
+to literal commits so T9 composition and display formatting remain unchanged.
 
 The bottom-row `T9`, symbol, and language commands should stay visually
 unframed, like the regular compact control row. Tune their fixed cell widths so

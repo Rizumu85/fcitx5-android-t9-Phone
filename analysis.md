@@ -285,6 +285,30 @@ letter-key swipe symbols.
 - Success criteria: floating candidate item binding should no longer read the
   T9-layout preference directly, and candidate label/comment/shortcut rendering
   should remain unchanged.
+- Next single-step target: `LabeledCandidateItemUi.update()` still builds a
+  combined `label|text|comment` signature string for every bind just to detect
+  candidate content changes. Compare the three candidate fields directly
+  instead, avoiding one string allocation per floating candidate bind.
+- Success criteria: active highlight reset should still happen only when the
+  candidate content changes, but candidate binding should not allocate a
+  signature string.
+- Next single-step target: floating candidate shortcut labels are derived with
+  `(position + 1).toString()` during binding. The label set is fixed for
+  positions 0-9, so the adapter can reuse a small constant table instead of
+  allocating a short string during candidate refresh.
+- Success criteria: shortcut labels should remain `1` through `9` and `0`, with
+  no behavior change when labels are hidden.
+- Next single-step target: number-mode expression extraction creates a
+  temporary `setOf(...)` inside the character predicate. Replace it with a
+  direct `when` predicate so expression evaluation does not allocate that set.
+- Success criteria: the accepted expression characters should remain digits,
+  decimal point, arithmetic operators, parentheses, spaces, and `π`.
+- Next single-step target: physical digit handling commits one-character digit
+  strings from several hot paths by calling `toString()` on calculated digits.
+  Reuse a fixed digit string table for literal digit commits while leaving
+  composition display formatting untouched.
+- Success criteria: long-press digit commits, number-mode digit commits, and
+  password-mode physical digit commits should produce the same characters.
 
 ## Temporary Full Keyboard Mode
 
