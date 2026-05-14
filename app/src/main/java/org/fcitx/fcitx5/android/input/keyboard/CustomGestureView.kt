@@ -19,6 +19,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import org.fcitx.fcitx5.android.data.InputFeedbacks
 import org.fcitx.fcitx5.android.data.prefs.AppPrefs
+import org.fcitx.fcitx5.android.data.prefs.ManagedPreference
 import org.fcitx.fcitx5.android.input.keyboard.CustomGestureView.OnGestureListener
 
 open class CustomGestureView(ctx: Context) : FrameLayout(ctx) {
@@ -252,8 +253,9 @@ open class CustomGestureView(ctx: Context) : FrameLayout(ctx) {
         countX: Int = 0,
         countY: Int = 0
     ) {
+        val listener = onGestureListener ?: return
         val event = Event(type, gestureConsumed, x, y, countX, countY, swipeTotalX, swipeTotalY)
-        val consumed = onGestureListener?.onGesture(this, event) ?: return
+        val consumed = listener.onGesture(this, event)
         if (consumed && !gestureConsumed) {
             gestureConsumed = true
         }
@@ -306,7 +308,20 @@ open class CustomGestureView(ctx: Context) : FrameLayout(ctx) {
     }
 
     companion object {
-        val longPressDelay by AppPrefs.getInstance().keyboard.longPressDelay
+        private val longPressDelayPref = AppPrefs.getInstance().keyboard.longPressDelay
+
+        @Volatile
+        private var longPressDelay = longPressDelayPref.getValue()
+
+        private val longPressDelayChangeListener =
+            ManagedPreference.OnChangeListener<Int> { _, value ->
+                longPressDelay = value
+            }
+
+        init {
+            longPressDelayPref.registerOnChangeListener(longPressDelayChangeListener)
+        }
+
         const val RepeatInterval = 50L
     }
 }

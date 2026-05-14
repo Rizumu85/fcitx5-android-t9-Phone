@@ -214,14 +214,7 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
         if (!isTemporaryPasswordKeyboardVisible() || event.action != KeyEvent.ACTION_DOWN) {
             return false
         }
-        if (keyCode !in setOf(
-                KeyEvent.KEYCODE_DEL,
-                KeyEvent.KEYCODE_BACK,
-                KeyEvent.KEYCODE_FORWARD_DEL
-            )
-        ) {
-            return false
-        }
+        if (!isBackspaceKey(keyCode)) return false
         val lastSelection = selection.latest
         if (!deleteBeforeCursorDirectly()) return false
         recordPasswordInputPreviewBackspace(selectionDeleted = lastSelection.isNotEmpty())
@@ -1517,11 +1510,51 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
         BOTTOM
     }
 
-    private val t9FocusUpKeyCodes = setOf(KeyEvent.KEYCODE_DPAD_UP)
-    private val t9FocusDownKeyCodes = setOf(KeyEvent.KEYCODE_DPAD_DOWN)
-    private val t9FocusOkKeyCodes = setOf(KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER)
-    private val t9FocusLeftKeyCodes = setOf(KeyEvent.KEYCODE_DPAD_LEFT)
-    private val t9FocusRightKeyCodes = setOf(KeyEvent.KEYCODE_DPAD_RIGHT)
+    private fun isT9FocusUpKey(keyCode: Int): Boolean =
+        keyCode == KeyEvent.KEYCODE_DPAD_UP
+
+    private fun isT9FocusDownKey(keyCode: Int): Boolean =
+        keyCode == KeyEvent.KEYCODE_DPAD_DOWN
+
+    private fun isT9FocusOkKey(keyCode: Int): Boolean = when (keyCode) {
+        KeyEvent.KEYCODE_DPAD_CENTER,
+        KeyEvent.KEYCODE_ENTER -> true
+        else -> false
+    }
+
+    private fun isT9FocusLeftKey(keyCode: Int): Boolean =
+        keyCode == KeyEvent.KEYCODE_DPAD_LEFT
+
+    private fun isT9FocusRightKey(keyCode: Int): Boolean =
+        keyCode == KeyEvent.KEYCODE_DPAD_RIGHT
+
+    private fun isBackspaceKey(keyCode: Int): Boolean = when (keyCode) {
+        KeyEvent.KEYCODE_DEL,
+        KeyEvent.KEYCODE_BACK,
+        KeyEvent.KEYCODE_FORWARD_DEL -> true
+        else -> false
+    }
+
+    private fun isT9HorizontalFocusKey(keyCode: Int): Boolean = when (keyCode) {
+        KeyEvent.KEYCODE_DPAD_LEFT,
+        KeyEvent.KEYCODE_DPAD_RIGHT -> true
+        else -> false
+    }
+
+    private fun isPendingT9PunctuationControlKey(keyCode: Int): Boolean = when (keyCode) {
+        in KeyEvent.KEYCODE_0..KeyEvent.KEYCODE_9,
+        KeyEvent.KEYCODE_STAR,
+        KeyEvent.KEYCODE_POUND,
+        KeyEvent.KEYCODE_DEL,
+        KeyEvent.KEYCODE_BACK,
+        KeyEvent.KEYCODE_DPAD_UP,
+        KeyEvent.KEYCODE_DPAD_DOWN,
+        KeyEvent.KEYCODE_DPAD_LEFT,
+        KeyEvent.KEYCODE_DPAD_RIGHT,
+        KeyEvent.KEYCODE_DPAD_CENTER,
+        KeyEvent.KEYCODE_ENTER -> true
+        else -> false
+    }
 
     private enum class T9EnglishCaseState {
         OFF,
@@ -1549,7 +1582,20 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
     /**
      * Track long press for digit keys (0-9)
      */
-    private val digitLongPressFlags = mutableMapOf<Int, Boolean>()
+    private class KeyCodeFlags(maxKeyCode: Int) {
+        private val flags = BooleanArray(maxKeyCode + 1)
+
+        operator fun get(keyCode: Int): Boolean? =
+            flags.getOrNull(keyCode)
+
+        operator fun set(keyCode: Int, value: Boolean) {
+            if (keyCode in flags.indices) {
+                flags[keyCode] = value
+            }
+        }
+    }
+
+    private val digitLongPressFlags = KeyCodeFlags(KeyEvent.KEYCODE_STAR)
 
     // ===== Multi-tap state for English mode =====
     private var multiTapLastKey = -1
@@ -3146,36 +3192,36 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
         val focus = getT9CandidateFocus()
         val pendingPunctuation = t9PendingPunctuation.isPending
         val handled = when {
-            keyCode in t9FocusUpKeyCodes && topRowVisible -> {
+            isT9FocusUpKey(keyCode) && topRowVisible -> {
                 moveT9CandidateFocus(T9CandidateFocus.TOP)
                 true
             }
-            keyCode in t9FocusUpKeyCodes && focus == T9CandidateFocus.BOTTOM -> {
+            isT9FocusUpKey(keyCode) && focus == T9CandidateFocus.BOTTOM -> {
                 candidatesView?.offsetT9HanziCandidatePage(-1) == true || pendingPunctuation
             }
-            keyCode in t9FocusDownKeyCodes && focus == T9CandidateFocus.TOP -> {
+            isT9FocusDownKey(keyCode) && focus == T9CandidateFocus.TOP -> {
                 moveT9CandidateFocus(T9CandidateFocus.BOTTOM)
                 true
             }
-            keyCode in t9FocusDownKeyCodes && focus == T9CandidateFocus.BOTTOM -> {
+            isT9FocusDownKey(keyCode) && focus == T9CandidateFocus.BOTTOM -> {
                 candidatesView?.offsetT9HanziCandidatePage(1) == true || pendingPunctuation
             }
-            keyCode in t9FocusLeftKeyCodes && focus == T9CandidateFocus.TOP -> {
+            isT9FocusLeftKey(keyCode) && focus == T9CandidateFocus.TOP -> {
                 candidatesView?.moveHighlightedT9Pinyin(-1) == true
             }
-            keyCode in t9FocusRightKeyCodes && focus == T9CandidateFocus.TOP -> {
+            isT9FocusRightKey(keyCode) && focus == T9CandidateFocus.TOP -> {
                 candidatesView?.moveHighlightedT9Pinyin(1) == true
             }
-            keyCode in t9FocusLeftKeyCodes && focus == T9CandidateFocus.BOTTOM -> {
+            isT9FocusLeftKey(keyCode) && focus == T9CandidateFocus.BOTTOM -> {
                 candidatesView?.moveHighlightedT9HanziCandidate(-1) == true || pendingPunctuation
             }
-            keyCode in t9FocusRightKeyCodes && focus == T9CandidateFocus.BOTTOM -> {
+            isT9FocusRightKey(keyCode) && focus == T9CandidateFocus.BOTTOM -> {
                 candidatesView?.moveHighlightedT9HanziCandidate(1) == true || pendingPunctuation
             }
-            keyCode in t9FocusOkKeyCodes && focus == T9CandidateFocus.TOP -> {
+            isT9FocusOkKey(keyCode) && focus == T9CandidateFocus.TOP -> {
                 commitHighlightedT9Pinyin()
             }
-            keyCode in t9FocusOkKeyCodes && focus == T9CandidateFocus.BOTTOM -> {
+            isT9FocusOkKey(keyCode) && focus == T9CandidateFocus.BOTTOM -> {
                 candidatesView?.commitHighlightedT9HanziCandidate() == true || pendingPunctuation
             }
             else -> false
@@ -3212,7 +3258,7 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
         }
         if (event.action == KeyEvent.ACTION_DOWN &&
             isTemporaryPasswordKeyboardVisible() &&
-            keyCode in t9FocusLeftKeyCodes + t9FocusRightKeyCodes
+            isT9HorizontalFocusKey(keyCode)
         ) {
             handleArrowKey(keyCode)
             t9ConsumedNavigationKeyUp = keyCode
@@ -3227,18 +3273,7 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
 
         if (event.action == KeyEvent.ACTION_DOWN &&
             t9PendingPunctuation.isPending &&
-            keyCode !in KeyEvent.KEYCODE_0..KeyEvent.KEYCODE_9 &&
-            keyCode !in setOf(
-                KeyEvent.KEYCODE_STAR,
-                KeyEvent.KEYCODE_POUND,
-                KeyEvent.KEYCODE_DEL,
-                KeyEvent.KEYCODE_BACK
-            ) &&
-            keyCode !in t9FocusUpKeyCodes &&
-            keyCode !in t9FocusDownKeyCodes &&
-            keyCode !in t9FocusLeftKeyCodes &&
-            keyCode !in t9FocusRightKeyCodes &&
-            keyCode !in t9FocusOkKeyCodes
+            !isPendingT9PunctuationControlKey(keyCode)
         ) {
             commitPendingT9Punctuation()
         }

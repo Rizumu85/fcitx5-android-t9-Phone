@@ -11,6 +11,7 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.inputmethod.EditorInfo
 import org.fcitx.fcitx5.android.data.prefs.AppPrefs
+import org.fcitx.fcitx5.android.data.prefs.ManagedPreference
 import org.fcitx.fcitx5.android.input.candidates.floating.FloatingCandidatesMode
 import org.fcitx.fcitx5.android.utils.isTypeNull
 
@@ -19,7 +20,30 @@ class InputDeviceManager(private val onChange: (Boolean) -> Unit) {
     private var inputView: InputView? = null
     private var candidatesView: CandidatesView? = null
 
-    private val t9InputModeEnabled by AppPrefs.getInstance().keyboard.useT9KeyboardLayout
+    private val prefs = AppPrefs.getInstance()
+
+    @Volatile
+    private var t9InputModeEnabled = prefs.keyboard.useT9KeyboardLayout.getValue()
+
+    @Volatile
+    private var candidatesViewMode = prefs.candidates.mode.getValue()
+
+    private val t9InputModeEnabledChangeListener =
+        ManagedPreference.OnChangeListener<Boolean> { _, value ->
+            t9InputModeEnabled = value
+        }
+
+    private val candidatesViewModeChangeListener =
+        ManagedPreference.OnChangeListener<FloatingCandidatesMode> { _, value ->
+            candidatesViewMode = value
+        }
+
+    init {
+        prefs.keyboard.useT9KeyboardLayout.registerOnChangeListener(
+            t9InputModeEnabledChangeListener
+        )
+        prefs.candidates.mode.registerOnChangeListener(candidatesViewModeChangeListener)
+    }
 
     private fun setupInputViewEvents(isVirtual: Boolean) {
         val iv = inputView ?: return
@@ -85,8 +109,6 @@ class InputDeviceManager(private val onChange: (Boolean) -> Unit) {
     /** True when user is in an input field (input view has been started). Used for T9 key remapping. */
     val isInInputMode: Boolean get() = startedInputView
     val isPassthroughInput: Boolean get() = isDialerField
-
-    private var candidatesViewMode by AppPrefs.getInstance().candidates.mode
 
     fun notifyOnStartInput(attribute: EditorInfo) {
         isNullInputType = attribute.isTypeNull()

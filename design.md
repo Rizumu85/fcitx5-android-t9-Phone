@@ -259,6 +259,25 @@ movement, haptic feedback, and sound feedback call these checks for every key.
 Keep listener references as fields because preference listeners are weakly held.
 For key-sound sample IDs, use fixed ordinal-indexed arrays instead of per-press
 data keys or hash maps.
+Prefer branch helpers over allocating temporary key-code collections inside
+`onKeyDown()`. Cache `InputDeviceManager`'s T9 layout and floating-candidate
+mode preferences for the same reason. For compact candidate rows, compute the
+first available measured width through straight-line checks instead of building
+temporary lists. Preload only the currently selected key-sound style; other
+styles remain lazy-loaded when the user selects or previews them.
+Screen-key gesture handling should also avoid preference reads and unnecessary
+objects in its touch path. Cache the long-press delay in `CustomGestureView`
+and update it from the preference listener, then skip creating a gesture event
+when no listener is present. Candidate refresh should use a cached T9-layout
+flag instead of reading the keyboard preference during every UI update.
+For fixed physical key-code flags, prefer primitive indexed storage while
+preserving the existing call-site shape. A tiny key-code flag container can keep
+nullable `get` semantics for out-of-range keys without paying `MutableMap`
+costs on every physical digit key event.
+Candidate adapters that consult layout preferences during bind should cache
+those flags with preference listeners. This keeps candidate row refreshes
+focused on text binding and avoids shared-preference reads in RecyclerView
+binding paths.
 
 The bottom-row `T9`, symbol, and language commands should stay visually
 unframed, like the regular compact control row. Tune their fixed cell widths so

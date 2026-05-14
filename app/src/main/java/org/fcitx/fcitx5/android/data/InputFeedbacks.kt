@@ -96,6 +96,7 @@ object InputFeedbacks {
     private val keySoundStyleChangeListener =
         ManagedPreference.OnChangeListener<KeySoundStyle> { _, value ->
             keySoundStyle = value
+            preloadAppSounds(value)
         }
     private val hapticOnKeyPressChangeListener =
         ManagedPreference.OnChangeListener<InputFeedbackMode> { _, value ->
@@ -305,12 +306,14 @@ object InputFeedbacks {
     }
 
     private fun preloadAppSounds() {
+        preloadAppSounds(keySoundStyle)
+    }
+
+    private fun preloadAppSounds(style: KeySoundStyle) {
         synchronized(appSoundLock) {
-            KeySoundStyle.entries.forEach { style ->
-                appSoundId(style, SoundEffect.Standard)
-                appSoundId(style, SoundEffect.SpaceBar)
-                appSoundId(style, SoundEffect.Delete)
-            }
+            appSoundId(style, SoundEffect.Standard)
+            appSoundId(style, SoundEffect.SpaceBar)
+            appSoundId(style, SoundEffect.Delete)
         }
     }
 

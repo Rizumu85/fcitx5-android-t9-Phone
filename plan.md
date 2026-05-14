@@ -682,6 +682,23 @@ Rizum Guidelines are active for this project/thread until the user says otherwis
 - [x] Cache frequently checked service keyboard toggles for physical T9 paths.
 - [x] Run a narrow Kotlin compile check for the performance changes.
 - [x] Build, install, and select the updated debug IME for retesting.
+- [x] Document the second low-risk hot-path performance pass.
+- [x] Remove per-key temporary key-code collections from service input handling.
+- [x] Cache `InputDeviceManager` hot-path preferences.
+- [x] Remove short-list allocation from T9 pinyin-row width synchronization.
+- [x] Preload only the selected key-sound style.
+- [x] Run a narrow Kotlin compile check for the second performance pass.
+- [x] Document the third low-risk touch/candidate hot-path pass.
+- [x] Cache screen-key long-press delay for touch handling.
+- [x] Skip gesture-event allocation when no gesture listener is installed.
+- [x] Cache the T9-layout flag used by floating candidate refresh.
+- [x] Run a narrow Kotlin compile check for the third performance pass.
+- [x] Document the physical digit long-press flag storage optimization.
+- [x] Replace physical digit long-press flag map with primitive indexed storage.
+- [x] Run a narrow Kotlin compile check for the digit flag optimization.
+- [x] Document candidate-binding preference caching.
+- [x] Cache the horizontal candidate adapter T9-layout flag.
+- [x] Run a narrow Kotlin compile check for candidate-binding caching.
 
 ## Password Bottom Row Safety Follow-up
 

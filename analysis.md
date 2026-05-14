@@ -244,6 +244,39 @@ letter-key swipe symbols.
   The sound matrix is fixed by enum style and three sample classes, so an
   ordinal-indexed `IntArray` cache can avoid per-key allocation while preserving
   the same lazy load and pending-play behavior.
+- Second performance audit finding: after the feature work settled, a few hot
+  paths still do small avoidable work on every physical key press or T9
+  candidate refresh. `onKeyDown()` builds temporary key-code collections for
+  password/navigation checks, `InputDeviceManager` reads two managed
+  preferences through `SharedPreferences`-backed delegates during physical key
+  evaluation, and `CandidatesView.syncPinyinRowWidthToCandidates()` allocates
+  short lists while synchronizing the pinyin row to the Hanzi row. Key-sound
+  startup also preloads every bundled sound style even though only the current
+  style needs low-latency playback.
+- Success criteria: remove those per-key/per-refresh allocations and
+  preference reads without changing visible keyboard behavior, candidate
+  behavior, or the selected key-sound style's first-play responsiveness.
+- Third performance audit finding: screen-key touch handling still reads the
+  long-press delay through a preference delegate for every down/up path, and
+  `dispatchGestureEvent()` allocates a gesture event even when no gesture
+  listener is installed. Floating candidate refresh also reads the T9 layout
+  preference directly in every `updateUi()` call.
+- Success criteria: cache those rarely changing preferences with weak-listener
+  safe field references, and skip gesture-event allocation when there is no
+  listener, without changing long-press timing, double-tap timing, swipe
+  behavior, or T9 candidate visibility.
+- Fourth performance audit finding: physical T9 digit and star long-press
+  tracking uses a `MutableMap<Int, Boolean>` even though key codes are small,
+  fixed integer values. This adds hashing/boxing overhead in the physical-key
+  down/up path.
+- Success criteria: keep the existing nullable `map[keyCode] == true` behavior
+  at call sites, but back it with a small primitive boolean array.
+- Fifth performance audit finding: horizontal candidate binding strips pinyin
+  comments based on the T9 layout preference, but the adapter reads that
+  preference through a delegate while binding candidate rows.
+- Success criteria: cache the horizontal candidate adapter's T9-layout flag so
+  candidate binding avoids preference reads while preserving the existing
+  comment-stripping behavior.
 
 ## Temporary Full Keyboard Mode
 

@@ -28,6 +28,7 @@ import org.fcitx.fcitx5.android.core.FormattedText
 import org.fcitx.fcitx5.android.daemon.FcitxConnection
 import org.fcitx.fcitx5.android.daemon.launchOnReady
 import org.fcitx.fcitx5.android.data.prefs.AppPrefs
+import org.fcitx.fcitx5.android.data.prefs.ManagedPreference
 import org.fcitx.fcitx5.android.data.theme.Theme
 import org.fcitx.fcitx5.android.input.candidates.floating.PagedCandidatesUi
 import org.fcitx.fcitx5.android.input.preedit.PreeditUi
@@ -59,7 +60,8 @@ class CandidatesView(
 
     private val ctx = context.withTheme(R.style.Theme_InputViewTheme)
 
-    private val candidatesPrefs = AppPrefs.getInstance().candidates
+    private val prefs = AppPrefs.getInstance()
+    private val candidatesPrefs = prefs.candidates
     private val orientation by candidatesPrefs.orientation
     private val windowMinWidth by candidatesPrefs.windowMinWidth
     private val windowPadding by candidatesPrefs.windowPadding
@@ -72,6 +74,18 @@ class CandidatesView(
     private val candidateItemSpacing by candidatesPrefs.candidateItemSpacing
     private val t9TopBottomRowRatioPercent by candidatesPrefs.t9TopBottomRowRatioPercent
     private val t9HanziCharacterBudget by candidatesPrefs.t9HanziCharacterBudget
+
+    @Volatile
+    private var t9InputModeEnabled = prefs.keyboard.useT9KeyboardLayout.getValue()
+
+    private val t9InputModeEnabledChangeListener =
+        ManagedPreference.OnChangeListener<Boolean> { _, value ->
+            t9InputModeEnabled = value
+        }
+
+    init {
+        prefs.keyboard.useT9KeyboardLayout.registerOnChangeListener(t9InputModeEnabledChangeListener)
+    }
 
     private var inputPanel = FcitxEvent.InputPanelEvent.Data()
     private var paged = FcitxEvent.PagedCandidateEvent.Data.Empty
@@ -484,7 +498,6 @@ class CandidatesView(
     }
 
     private fun updateUi() {
-        val t9InputModeEnabled = AppPrefs.getInstance().keyboard.useT9KeyboardLayout.getValue()
         if (t9InputModeEnabled) {
             service.syncT9CompositionWithInputPanel(inputPanel)
         }
@@ -1100,20 +1113,10 @@ class CandidatesView(
     }
 
     private fun syncPinyinRowWidthToCandidates(): Boolean {
-        var candidateWidth = listOf(
-            candidatesUi.root.width,
-            candidatesUi.root.measuredWidth,
-            candidateRowWrapper.width,
-            candidateRowWrapper.measuredWidth
-        ).firstOrNull { it > 0 }
+        var candidateWidth = firstPositiveCandidateRowWidth()
         if (candidateWidth == null) {
             ensureCandidateRowMeasuredForPinyinSync()
-            candidateWidth = listOf(
-                candidatesUi.root.width,
-                candidatesUi.root.measuredWidth,
-                candidateRowWrapper.width,
-                candidateRowWrapper.measuredWidth
-            ).firstOrNull { it > 0 }
+            candidateWidth = firstPositiveCandidateRowWidth()
         }
         candidateWidth ?: return false
         (pinyinRowWrapper.layoutParams as? LinearLayout.LayoutParams)?.let { params ->
@@ -1123,6 +1126,14 @@ class CandidatesView(
             }
         }
         return true
+    }
+
+    private fun firstPositiveCandidateRowWidth(): Int? {
+        candidatesUi.root.width.takeIf { it > 0 }?.let { return it }
+        candidatesUi.root.measuredWidth.takeIf { it > 0 }?.let { return it }
+        candidateRowWrapper.width.takeIf { it > 0 }?.let { return it }
+        candidateRowWrapper.measuredWidth.takeIf { it > 0 }?.let { return it }
+        return null
     }
 
     private fun ensureCandidateRowMeasuredForPinyinSync() {
