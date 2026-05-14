@@ -67,7 +67,7 @@ class TemporaryFullKeyboard(
                 textSize = 16f,
                 horizontalBias = 0.6f,
                 textStyle = android.graphics.Typeface.BOLD,
-                percentWidth = 0.10f,
+                percentWidth = 0.08f,
                 variant = Appearance.Variant.Alternative,
                 pressHighlight = false
             ),
@@ -133,13 +133,13 @@ class TemporaryFullKeyboard(
                 BackspaceKey()
             ),
             listOf(
-                ExitToT9Key(),
                 LayoutSwitchKey(
                     "符号",
                     PickerWindow.Key.Symbol.name,
-                    0.13f,
+                    0.15f,
                     KeyDef.Appearance.Variant.Alternative
                 ),
+                ExitToT9Key(),
                 LanguageKey(0.12f),
                 SpaceKey(0.0f),
                 PeekKey(),

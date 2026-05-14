@@ -180,6 +180,18 @@ Gate this preview behind a default-on keyboard preference placed below the
 password toolbar number-row setting. Disabling it should hide and clear the
 local buffer, but should not disable password mode, its digit row, or the
 password-layout left/right cursor-key handling.
+While the temporary password layout is visible, physical phone keypad digits,
+`*`, and `#` should be treated as literal password characters before the normal
+T9 special-key state machine runs. Commit them through the same service
+`commitText()` wrapper used by on-screen keys so the target editor, selection
+prediction, and IME-local preview stay in one path. Consume the corresponding
+key-up event to avoid a second pass through T9 mode switching, punctuation, or
+numeric-mode shortcuts.
+Physical Backspace/Delete in password mode should also bypass the ordinary T9
+special-key paths. Delete from the target editor through the direct physical
+delete helper, and only then update the local password preview with the same
+selection-deleted information. This keeps repeats responsive while avoiding
+stale preview text.
 
 Input feedback preferences should apply to both input surfaces. On-screen keys
 play sound through `CustomGestureView`; physical phone keys should play the
@@ -218,6 +230,8 @@ sound class.
 If synthetic reconstruction still feels wrong, prefer the direct-sample path:
 decode the user-provided BDS `aj`, `ajgn`, and `ajhc` assets into small mono WAV
 resources and play them with `SoundPool`. This preserves the actual skin timbre
+and keeps latency low; `Return` shares the delete/emphasis sample because the
+skin sound model only has three sound classes.
 The keyboard settings page should include a non-persistent preview action next
 to the key-sound style setting. It should play through the app-owned sample
 path using the currently selected style and volume, independent of whether
@@ -228,8 +242,6 @@ Keep the preview action directly below the key-sound style row by assigning
 explicit preference order values rather than relying on add/remove order. Render
 the preview dialog as themed selectable list rows with standard text
 appearances and tinted icons, matching the rest of the settings UI.
-and keeps latency low; `Return` shares the delete/emphasis sample because the
-skin sound model only has three sound classes.
 Additional purchased skin sounds should be added as distinct `KeySoundStyle`
 entries with skin-specific names instead of reusing generic `Crisp` or
 `Muffled`. This keeps persisted preferences unambiguous and lets users compare
@@ -239,6 +251,14 @@ For BDS sound packs that use numbered style classes instead of the older
 the skin CSS/config. For the black/white filter packs, use `349 -> aj1` for
 ordinary keys, `350 -> aj2` for Space/function keys, and `351 -> aj3` for
 Delete/Return/emphasis keys.
+
+Performance work should focus only on no-behavior-change hot-path reductions.
+Cache rarely changing keyboard and feedback preferences in memory and update
+them via `ManagedPreference` listeners, because physical key input, candidate
+movement, haptic feedback, and sound feedback call these checks for every key.
+Keep listener references as fields because preference listeners are weakly held.
+For key-sound sample IDs, use fixed ordinal-indexed arrays instead of per-press
+data keys or hash maps.
 
 The bottom-row `T9`, symbol, and language commands should stay visually
 unframed, like the regular compact control row. Tune their fixed cell widths so
@@ -486,6 +506,13 @@ The password-mode bottom row should not use a separate interactive spacer before
 `T9`. Give the `T9` exit key the full leading area formerly occupied by the
 spacer plus the key, and shift only its text slightly right so the visible gap
 stays balanced while the press highlight reads as one natural key region.
+For safety, the password-mode symbol command should come before the `T9` exit
+command. This preserves the user's regular left-side symbol-key muscle memory
+and moves the destructive password-mode exit one position away from the edge.
+After that swap, keep the password-mode symbol key's width equal to the regular
+T9 symbol key (`0.15f`) so the label center aligns across layouts. Offset the
+extra width by narrowing the adjacent `T9` exit key rather than moving the
+language, space, peek, or return controls.
 
 Layout and picker switch keys are navigation controls, not text-entry keys.
 Their touch feedback should match the bubble-first keys used elsewhere: show a

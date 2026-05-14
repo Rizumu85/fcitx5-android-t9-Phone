@@ -191,6 +191,44 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
         updatePasswordInputPreviewView()
     }
 
+    private fun commitPhysicalPasswordLiteralKey(keyCode: Int, event: KeyEvent): Boolean {
+        if (!isTemporaryPasswordKeyboardVisible() || event.action != KeyEvent.ACTION_DOWN) {
+            return false
+        }
+        val text = when (keyCode) {
+            in KeyEvent.KEYCODE_0..KeyEvent.KEYCODE_9 ->
+                (keyCode - KeyEvent.KEYCODE_0).toString()
+            in KeyEvent.KEYCODE_NUMPAD_0..KeyEvent.KEYCODE_NUMPAD_9 ->
+                (keyCode - KeyEvent.KEYCODE_NUMPAD_0).toString()
+            KeyEvent.KEYCODE_STAR,
+            KeyEvent.KEYCODE_NUMPAD_MULTIPLY -> "*"
+            KeyEvent.KEYCODE_POUND -> "#"
+            else -> return false
+        }
+        commitText(text)
+        t9ConsumedNavigationKeyUp = keyCode
+        return true
+    }
+
+    private fun handlePhysicalPasswordBackspaceKey(keyCode: Int, event: KeyEvent): Boolean {
+        if (!isTemporaryPasswordKeyboardVisible() || event.action != KeyEvent.ACTION_DOWN) {
+            return false
+        }
+        if (keyCode !in setOf(
+                KeyEvent.KEYCODE_DEL,
+                KeyEvent.KEYCODE_BACK,
+                KeyEvent.KEYCODE_FORWARD_DEL
+            )
+        ) {
+            return false
+        }
+        val lastSelection = selection.latest
+        if (!deleteBeforeCursorDirectly()) return false
+        recordPasswordInputPreviewBackspace(selectionDeleted = lastSelection.isNotEmpty())
+        t9ConsumedNavigationKeyUp = keyCode
+        return true
+    }
+
     private val navbarMgr = NavigationBarManager()
     private val inputDeviceMgr = InputDeviceManager { isVirtualKeyboard ->
         postFcitxJob {
@@ -383,11 +421,42 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
 
     private val prefs = AppPrefs.getInstance()
     private val keyboardPrefs = prefs.keyboard
-    private val inlineSuggestions by keyboardPrefs.inlineSuggestions
-    private val passwordInputPreviewEnabled by keyboardPrefs.passwordInputPreview
-    private val physicalKeySound by keyboardPrefs.physicalKeySound
-    private val t9InputModeEnabled by keyboardPrefs.useT9KeyboardLayout
-    private val ignoreSystemCursor by prefs.advanced.ignoreSystemCursor
+
+    @Volatile
+    private var inlineSuggestions = keyboardPrefs.inlineSuggestions.getValue()
+
+    @Volatile
+    private var passwordInputPreviewEnabled = keyboardPrefs.passwordInputPreview.getValue()
+
+    @Volatile
+    private var physicalKeySound = keyboardPrefs.physicalKeySound.getValue()
+
+    @Volatile
+    private var t9InputModeEnabled = keyboardPrefs.useT9KeyboardLayout.getValue()
+
+    @Volatile
+    private var ignoreSystemCursor = prefs.advanced.ignoreSystemCursor.getValue()
+
+    private val inlineSuggestionsChangeListener =
+        ManagedPreference.OnChangeListener<Boolean> { _, value ->
+            inlineSuggestions = value
+        }
+    private val passwordInputPreviewEnabledChangeListener =
+        ManagedPreference.OnChangeListener<Boolean> { _, value ->
+            passwordInputPreviewEnabled = value
+        }
+    private val physicalKeySoundChangeListener =
+        ManagedPreference.OnChangeListener<Boolean> { _, value ->
+            physicalKeySound = value
+        }
+    private val t9InputModeEnabledChangeListener =
+        ManagedPreference.OnChangeListener<Boolean> { _, value ->
+            t9InputModeEnabled = value
+        }
+    private val ignoreSystemCursorChangeListener =
+        ManagedPreference.OnChangeListener<Boolean> { _, value ->
+            ignoreSystemCursor = value
+        }
 
     private val recreateInputViewPrefs: Array<ManagedPreference<*>> = arrayOf(
         prefs.keyboard.expandKeypressArea,
@@ -486,6 +555,13 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
         recreateInputViewPrefs.forEach {
             it.registerOnChangeListener(recreateInputViewListener)
         }
+        keyboardPrefs.inlineSuggestions.registerOnChangeListener(inlineSuggestionsChangeListener)
+        keyboardPrefs.passwordInputPreview.registerOnChangeListener(
+            passwordInputPreviewEnabledChangeListener
+        )
+        keyboardPrefs.physicalKeySound.registerOnChangeListener(physicalKeySoundChangeListener)
+        keyboardPrefs.useT9KeyboardLayout.registerOnChangeListener(t9InputModeEnabledChangeListener)
+        prefs.advanced.ignoreSystemCursor.registerOnChangeListener(ignoreSystemCursorChangeListener)
         prefs.keyboard.inputUiFont.registerOnChangeListener(recreateInputViewsListener)
         keyboardPrefs.passwordInputPreview.registerOnChangeListener(passwordInputPreviewChangeListener)
         prefs.candidates.registerOnChangeListener(recreateCandidatesViewListener)
@@ -3142,6 +3218,12 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
             t9ConsumedNavigationKeyUp = keyCode
             return true
         }
+        if (handlePhysicalPasswordBackspaceKey(keyCode, event)) {
+            return true
+        }
+        if (commitPhysicalPasswordLiteralKey(keyCode, event)) {
+            return true
+        }
 
         if (event.action == KeyEvent.ACTION_DOWN &&
             t9PendingPunctuation.isPending &&
@@ -3871,6 +3953,13 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
         recreateInputViewPrefs.forEach {
             it.unregisterOnChangeListener(recreateInputViewListener)
         }
+        keyboardPrefs.inlineSuggestions.unregisterOnChangeListener(inlineSuggestionsChangeListener)
+        keyboardPrefs.passwordInputPreview.unregisterOnChangeListener(
+            passwordInputPreviewEnabledChangeListener
+        )
+        keyboardPrefs.physicalKeySound.unregisterOnChangeListener(physicalKeySoundChangeListener)
+        keyboardPrefs.useT9KeyboardLayout.unregisterOnChangeListener(t9InputModeEnabledChangeListener)
+        prefs.advanced.ignoreSystemCursor.unregisterOnChangeListener(ignoreSystemCursorChangeListener)
         prefs.keyboard.inputUiFont.unregisterOnChangeListener(recreateInputViewsListener)
         keyboardPrefs.passwordInputPreview.unregisterOnChangeListener(passwordInputPreviewChangeListener)
         prefs.candidates.unregisterOnChangeListener(recreateCandidatesViewListener)

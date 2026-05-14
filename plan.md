@@ -673,3 +673,32 @@ Rizum Guidelines are active for this project/thread until the user says otherwis
 - [x] Rename the original synthesized styles with a Mini / 小小 prefix.
 - [x] Run a narrow Kotlin compile check for the preview polish.
 - [x] Build, install, and select the updated debug IME for retesting.
+
+## Runtime Performance Follow-up
+
+- [x] Document safe hot-path performance targets.
+- [x] Cache input-feedback preferences instead of reading `SharedPreferences` on every key.
+- [x] Replace key-sound map lookup with fixed style/effect sample-id arrays.
+- [x] Cache frequently checked service keyboard toggles for physical T9 paths.
+- [x] Run a narrow Kotlin compile check for the performance changes.
+- [x] Build, install, and select the updated debug IME for retesting.
+
+## Password Bottom Row Safety Follow-up
+
+- [x] Document why password-mode symbol and `T9` should be swapped.
+- [x] Swap password-mode symbol and `T9` bottom-row positions.
+- [x] Run a narrow Kotlin compile check for the bottom-row swap.
+- [x] Build, install, and select the updated debug IME for retesting.
+- [x] Document password-mode symbol alignment against regular T9.
+- [x] Match password-mode symbol width to regular T9 and compensate with the `T9` exit width.
+- [x] Run a narrow Kotlin compile check for the alignment tweak.
+- [x] Build, install, and select the updated debug IME for retesting.
+
+## Password Preview Physical-Key Follow-up
+
+- [x] Document why physical password digits and `*#` can miss the local preview.
+- [x] Route physical password digit, `*`, and `#` keys through the service commit path.
+- [x] Run a narrow Kotlin compile check for the physical password preview change.
+- [x] Document why physical Backspace can miss the local password preview.
+- [x] Route physical password Backspace/Delete through preview-aware deletion.
+- [x] Run a narrow Kotlin compile check for the physical password Backspace change.

@@ -66,6 +66,35 @@ letter-key swipe symbols.
   can leave the KawaiiBar's cached password-capability state true until Android
   sends a clean non-password input-start callback. The exit path should clear
   both password-layout state and password-capability number-row state.
+- Password-mode bottom-row safety follow-up: placing `T9` at the far-left
+  position conflicts with regular T9 muscle memory where the left-side command
+  opens symbols. In password mode this can accidentally exit password mode when
+  the user intended to open symbols. Swap the symbol and `T9` commands so the
+  symbol key owns the first bottom-row position.
+- Password-mode symbol alignment follow-up: after the swap, the password-mode
+  symbol key still used a narrower `0.13f` width while the regular T9 symbol
+  key uses `0.15f`. This makes the symbol label center slightly misalign with
+  the user's learned position. Match the symbol key width and compensate by
+  narrowing the adjacent `T9` exit key so the rest of the row keeps its spacing.
+- Password preview physical-key follow-up: the IME-local password preview is
+  updated only through the service-level `commitText()` wrapper. Physical phone
+  keypad digits, `*`, and `#` can be intercepted by T9 special-key handling or
+  forwarded to Fcitx without passing through that wrapper, so the app receives
+  the character while the preview misses it.
+- Success criteria: when the temporary password keyboard is visible, short or
+  repeated physical digit, `*`, and `#` key presses should insert those literal
+  password characters through the same service commit path as on-screen keys,
+  update the local preview, and consume the matching key-up so the T9 mode
+  state machine does not also treat them as mode-switch or punctuation keys.
+- Physical Backspace follow-up: the idle physical backspace path uses
+  `deleteBeforeCursorDirectly()`, which deletes from the target editor without
+  calling `handleBackspaceKey()` or `recordPasswordInputPreviewBackspace()`.
+  This leaves the IME-local password preview stale after deleting characters
+  typed with physical keys.
+- Success criteria: while the temporary password keyboard is visible, physical
+  Backspace/Delete should delete from the target editor and update the local
+  password preview in the same key-down pass, including repeated deletes and
+  selected-text deletion.
 - Password peek follow-up: on small screens, the password QWERTY layout can
   hide the password field or captcha image. A manual peek control should be
   available directly inside password mode because KawaiiBar is occupied by the
@@ -203,6 +232,18 @@ letter-key swipe symbols.
   instead of plain platform buttons. The original synthesized styles should
   carry a small `Mini` / `小小` prefix so they do not read like the imported
   skin-sample styles.
+- Performance audit finding: several hot input paths read managed preferences
+  through delegated properties on every physical or on-screen key event. Those
+  delegates ultimately hit `SharedPreferences`, which is unnecessary for values
+  that change rarely. Cache input-feedback preferences inside `InputFeedbacks`
+  and cache frequently checked service-level keyboard toggles inside
+  `FcitxInputMethodService`, updating the caches through existing preference
+  change listeners.
+- Sound playback hot path finding: the app-owned `SoundPool` path constructs
+  an `AppSoundKey` data object and performs map lookup on every sound effect.
+  The sound matrix is fixed by enum style and three sample classes, so an
+  ordinal-indexed `IntArray` cache can avoid per-key allocation while preserving
+  the same lazy load and pending-play behavior.
 
 ## Temporary Full Keyboard Mode
 

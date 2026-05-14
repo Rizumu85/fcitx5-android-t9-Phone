@@ -14,6 +14,7 @@ import android.view.HapticFeedbackConstants
 import android.view.View
 import org.fcitx.fcitx5.android.R
 import org.fcitx.fcitx5.android.data.prefs.AppPrefs
+import org.fcitx.fcitx5.android.data.prefs.ManagedPreference
 import org.fcitx.fcitx5.android.data.prefs.ManagedPreferenceEnum
 import org.fcitx.fcitx5.android.utils.appContext
 import org.fcitx.fcitx5.android.utils.audioManager
@@ -53,15 +54,95 @@ object InputFeedbacks {
 
     private val keyboardPrefs = AppPrefs.getInstance().keyboard
 
-    private val soundOnKeyPress by keyboardPrefs.soundOnKeyPress
-    private val soundOnKeyPressVolume by keyboardPrefs.soundOnKeyPressVolume
-    private val keySoundStyle by keyboardPrefs.keySoundStyle
-    private val hapticOnKeyPress by keyboardPrefs.hapticOnKeyPress
-    private val hapticOnKeyUp by keyboardPrefs.hapticOnKeyUp
-    private val buttonPressVibrationMilliseconds by keyboardPrefs.buttonPressVibrationMilliseconds
-    private val buttonLongPressVibrationMilliseconds by keyboardPrefs.buttonLongPressVibrationMilliseconds
-    private val buttonPressVibrationAmplitude by keyboardPrefs.buttonPressVibrationAmplitude
-    private val buttonLongPressVibrationAmplitude by keyboardPrefs.buttonLongPressVibrationAmplitude
+    @Volatile
+    private var soundOnKeyPress = keyboardPrefs.soundOnKeyPress.getValue()
+
+    @Volatile
+    private var soundOnKeyPressVolume = keyboardPrefs.soundOnKeyPressVolume.getValue()
+
+    @Volatile
+    private var keySoundStyle = keyboardPrefs.keySoundStyle.getValue()
+
+    @Volatile
+    private var hapticOnKeyPress = keyboardPrefs.hapticOnKeyPress.getValue()
+
+    @Volatile
+    private var hapticOnKeyUp = keyboardPrefs.hapticOnKeyUp.getValue()
+
+    @Volatile
+    private var buttonPressVibrationMilliseconds =
+        keyboardPrefs.buttonPressVibrationMilliseconds.getValue()
+
+    @Volatile
+    private var buttonLongPressVibrationMilliseconds =
+        keyboardPrefs.buttonLongPressVibrationMilliseconds.getValue()
+
+    @Volatile
+    private var buttonPressVibrationAmplitude =
+        keyboardPrefs.buttonPressVibrationAmplitude.getValue()
+
+    @Volatile
+    private var buttonLongPressVibrationAmplitude =
+        keyboardPrefs.buttonLongPressVibrationAmplitude.getValue()
+
+    private val soundOnKeyPressChangeListener =
+        ManagedPreference.OnChangeListener<InputFeedbackMode> { _, value ->
+            soundOnKeyPress = value
+        }
+    private val soundOnKeyPressVolumeChangeListener =
+        ManagedPreference.OnChangeListener<Int> { _, value ->
+            soundOnKeyPressVolume = value
+        }
+    private val keySoundStyleChangeListener =
+        ManagedPreference.OnChangeListener<KeySoundStyle> { _, value ->
+            keySoundStyle = value
+        }
+    private val hapticOnKeyPressChangeListener =
+        ManagedPreference.OnChangeListener<InputFeedbackMode> { _, value ->
+            hapticOnKeyPress = value
+        }
+    private val hapticOnKeyUpChangeListener =
+        ManagedPreference.OnChangeListener<Boolean> { _, value ->
+            hapticOnKeyUp = value
+        }
+    private val buttonPressVibrationMillisecondsChangeListener =
+        ManagedPreference.OnChangeListener<Int> { _, value ->
+            buttonPressVibrationMilliseconds = value
+        }
+    private val buttonLongPressVibrationMillisecondsChangeListener =
+        ManagedPreference.OnChangeListener<Int> { _, value ->
+            buttonLongPressVibrationMilliseconds = value
+        }
+    private val buttonPressVibrationAmplitudeChangeListener =
+        ManagedPreference.OnChangeListener<Int> { _, value ->
+            buttonPressVibrationAmplitude = value
+        }
+    private val buttonLongPressVibrationAmplitudeChangeListener =
+        ManagedPreference.OnChangeListener<Int> { _, value ->
+            buttonLongPressVibrationAmplitude = value
+        }
+
+    init {
+        keyboardPrefs.soundOnKeyPress.registerOnChangeListener(soundOnKeyPressChangeListener)
+        keyboardPrefs.soundOnKeyPressVolume.registerOnChangeListener(
+            soundOnKeyPressVolumeChangeListener
+        )
+        keyboardPrefs.keySoundStyle.registerOnChangeListener(keySoundStyleChangeListener)
+        keyboardPrefs.hapticOnKeyPress.registerOnChangeListener(hapticOnKeyPressChangeListener)
+        keyboardPrefs.hapticOnKeyUp.registerOnChangeListener(hapticOnKeyUpChangeListener)
+        keyboardPrefs.buttonPressVibrationMilliseconds.registerOnChangeListener(
+            buttonPressVibrationMillisecondsChangeListener
+        )
+        keyboardPrefs.buttonLongPressVibrationMilliseconds.registerOnChangeListener(
+            buttonLongPressVibrationMillisecondsChangeListener
+        )
+        keyboardPrefs.buttonPressVibrationAmplitude.registerOnChangeListener(
+            buttonPressVibrationAmplitudeChangeListener
+        )
+        keyboardPrefs.buttonLongPressVibrationAmplitude.registerOnChangeListener(
+            buttonLongPressVibrationAmplitudeChangeListener
+        )
+    }
 
     private val vibrator = appContext.vibrator
 
@@ -125,18 +206,21 @@ object InputFeedbacks {
 
     private val audioManager = appContext.audioManager
 
-    private data class AppSoundKey(
-        val style: KeySoundStyle,
-        val effect: SoundEffect
-    )
-
     private val appSoundLock = Any()
-    private val appSoundIds = mutableMapOf<AppSoundKey, Int>()
+    private val appSoundIds = Array(KeySoundStyle.entries.size) { IntArray(3) }
     private val loadedAppSoundIds = mutableSetOf<Int>()
     private val pendingAppSoundGains = mutableMapOf<Int, Float>()
 
     private fun sampleSoundEffect(effect: SoundEffect): SoundEffect =
         if (effect == SoundEffect.Return) SoundEffect.Delete else effect
+
+    private fun sampleSoundIndex(effect: SoundEffect): Int {
+        return when (effect) {
+            SoundEffect.Standard -> 0
+            SoundEffect.SpaceBar -> 1
+            SoundEffect.Delete, SoundEffect.Return -> 2
+        }
+    }
 
     private val appSoundPool: SoundPool by lazy {
         SoundPool.Builder()
@@ -210,37 +294,41 @@ object InputFeedbacks {
         }
     }
 
-    private fun appSoundId(key: AppSoundKey): Int {
-        return appSoundIds.getOrPut(key) {
-            appSoundPool.load(appContext, appSoundResId(key.style, key.effect), 1)
-        }
+    private fun appSoundId(style: KeySoundStyle, effect: SoundEffect): Int {
+        val sampleEffect = sampleSoundEffect(effect)
+        val column = sampleSoundIndex(sampleEffect)
+        val current = appSoundIds[style.ordinal][column]
+        if (current != 0) return current
+        val id = appSoundPool.load(appContext, appSoundResId(style, sampleEffect), 1)
+        appSoundIds[style.ordinal][column] = id
+        return id
     }
 
     private fun preloadAppSounds() {
         synchronized(appSoundLock) {
             KeySoundStyle.entries.forEach { style ->
-                appSoundId(AppSoundKey(style, SoundEffect.Standard))
-                appSoundId(AppSoundKey(style, SoundEffect.SpaceBar))
-                appSoundId(AppSoundKey(style, SoundEffect.Delete))
+                appSoundId(style, SoundEffect.Standard)
+                appSoundId(style, SoundEffect.SpaceBar)
+                appSoundId(style, SoundEffect.Delete)
             }
         }
     }
 
     private fun playAppSoundEffect(effect: SoundEffect, volume: Int) {
         val gain = (volume.coerceIn(0, 100) / 100f).takeIf { it > 0f } ?: 0.5f
+        val style = keySoundStyle
         val soundId = synchronized(appSoundLock) {
-            appSoundId(AppSoundKey(keySoundStyle, sampleSoundEffect(effect)))
-        }
-        if (soundId == 0) return
-        val isLoaded = synchronized(appSoundLock) {
-            if (soundId in loadedAppSoundIds) {
-                true
-            } else {
-                pendingAppSoundGains[soundId] = gain
-                false
+            val id = appSoundId(style, effect)
+            when {
+                id == 0 -> 0
+                id in loadedAppSoundIds -> id
+                else -> {
+                    pendingAppSoundGains[id] = gain
+                    0
+                }
             }
         }
-        if (isLoaded) {
+        if (soundId != 0) {
             appSoundPool.play(soundId, gain, gain, 1, 0, 1f)
         }
     }
