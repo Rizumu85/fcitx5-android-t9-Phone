@@ -12,6 +12,7 @@ import androidx.core.content.edit
 import androidx.preference.PreferenceManager
 import org.fcitx.fcitx5.android.R
 import org.fcitx.fcitx5.android.data.InputFeedbacks.InputFeedbackMode
+import org.fcitx.fcitx5.android.data.InputFeedbacks.KeySoundStyle
 import org.fcitx.fcitx5.android.input.InputUiFont
 import org.fcitx.fcitx5.android.input.candidates.expanded.ExpandedCandidateStyle
 import org.fcitx.fcitx5.android.input.candidates.floating.FloatingCandidatesMode
@@ -129,6 +130,20 @@ class AppPrefs(private val sharedPreferences: SharedPreferences) {
         ) {
             soundOnKeyPress.getValue() != InputFeedbackMode.Disabled
         }
+        val keySoundStyle = enumList(
+            R.string.key_sound_style,
+            "key_sound_style",
+            KeySoundStyle.Muffled
+        ) {
+            soundOnKeyPress.getValue() != InputFeedbackMode.Disabled
+        }
+        val physicalKeySound = switch(
+            R.string.physical_key_sound,
+            "physical_key_sound",
+            true
+        ) {
+            soundOnKeyPress.getValue() != InputFeedbackMode.Disabled
+        }
         val focusChangeResetKeyboard =
             switch(R.string.reset_keyboard_on_focus_change, "reset_keyboard_on_focus_change", true)
         val expandToolbarByDefault =
@@ -136,6 +151,8 @@ class AppPrefs(private val sharedPreferences: SharedPreferences) {
         val inlineSuggestions = switch(R.string.inline_suggestions, "inline_suggestions", true)
         val toolbarNumRowOnPassword =
             switch(R.string.toolbar_num_row_on_password, "toolbar_num_row_on_password", true)
+        val passwordInputPreview =
+            switch(R.string.password_input_preview, "password_input_preview", true)
         val popupOnKeyPress = switch(R.string.popup_on_key_press, "popup_on_key_press", true)
         val keepLettersUppercase = switch(
             R.string.keep_keyboard_letters_uppercase,

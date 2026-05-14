@@ -202,6 +202,7 @@
     <string name="notification_permission_message">Without the permission to post notifications, we are not able to notify you when some time-consuming operations are done.</string>
     <string name="notification_permission_title">No Notification Permission</string>
     <string name="toolbar_num_row_on_password">Show number row on toolbar when inputting password</string>
+    <string name="password_input_preview">Show typed text preview in password mode</string>
     <string name="space_long_press_behavior">Space key long press behavior</string>
     <string name="space_behavior_none">None</string>
     <string name="space_behavior_enumerate">Enumerate input methods</string>
@@ -245,6 +246,11 @@
     <string name="following_system_settings">Follow system settings</string>
     <string name="button_sound">Sound on keypress</string>
     <string name="button_sound_volume">Keypress sound volume</string>
+    <string name="key_sound_style">Keypress sound style</string>
+    <string name="key_sound_style_muffled">Muffled</string>
+    <string name="key_sound_style_mechanical">Mechanical</string>
+    <string name="key_sound_style_crisp">Crisp</string>
+    <string name="physical_key_sound">Play sound for physical keys</string>
     <string name="clipboard_return_after_paste">Return after pasting</string>
     <string name="theme_message_follow_system_day_night_mode_enabled">Cannot switch theme manually while \"Follow system day/night mode\" is enabled.</string>
     <string name="disable_it">Disable it</string>

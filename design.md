@@ -176,6 +176,50 @@ Chinese T9 candidate bubbles. Track a local cursor in the preview buffer.
 Left/right cursor movement should first move the target editor cursor through
 the normal `InputConnection` path, then move the preview cursor by one code
 point so later commits and Backspace operate at the same local position.
+Gate this preview behind a default-on keyboard preference placed below the
+password toolbar number-row setting. Disabling it should hide and clear the
+local buffer, but should not disable password mode, its digit row, or the
+password-layout left/right cursor-key handling.
+
+Input feedback preferences should apply to both input surfaces. On-screen keys
+play sound through `CustomGestureView`; physical phone keys should play the
+same configured sound effect on the initial key-down event in
+`FcitxInputMethodService`, before the key is consumed by T9, candidate
+navigation, password mode, or Fcitx forwarding. Repeated hardware key-down
+events should not retrigger the press sound.
+For sound mode semantics, `FollowingSystem` should continue to use Android's
+system sound effects and respect `SOUND_EFFECTS_ENABLED`. `Enabled` should be
+app-enforced and play through a separate sonification path so muted system sound
+effects do not make the app preference look broken.
+Physical key sound should be independently controllable because hardware keys
+are used more often and may be annoying in public. Keep the switch default-on
+so existing enabled-sound behavior is consistent across input surfaces. The
+app-owned sound path should expose a small style list and make key classes
+subtly different: ordinary keys should be shortest, Space slightly softer,
+Delete distinct, and Return a little more affirmative.
+Model the app-owned key sounds after Baidu skin `SOUND_STYLE` categories rather
+than using Android `ToneGenerator` beeps. Expose the imported skin-style names
+as `Muffled`, `Mechanical`, and `Crisp`, and synthesize each style from a short
+noise transient plus a few fast-decaying resonators. Map ordinary keys to the
+style-80 sound, Space/function-like keys to a lower/softer style-81 sound, and
+Delete/emphasis keys to a sharper style-82 sound. This preserves the useful
+structure without copying the original audio assets into the app.
+The synthesized parameters should remain traceable to decoded BDS assets:
+duration follows each skin's `aj`, `ajgn`, and `ajhc` file lengths, resonator
+groups follow the strongest measured bands, and `Mechanical` keeps a secondary
+tap to mimic its double-click feel. The explicit app-owned path should route as
+media sonification and manage static `AudioTrack` replay directly, because the
+Android system key-sound stream can be muted independently of the app setting.
+Do not make the resonators the main sound source. They should only color the
+short noise transient so the result feels like a sampled skin click rather than
+a pitched synthetic tone. For physical keys, classify both literal Space and
+the T9 phone's `DPAD_CENTER` input-mode space mapping as the Space/function
+sound class.
+If synthetic reconstruction still feels wrong, prefer the direct-sample path:
+decode the user-provided BDS `aj`, `ajgn`, and `ajhc` assets into small mono WAV
+resources and play them with `SoundPool`. This preserves the actual skin timbre
+and keeps latency low; `Return` shares the delete/emphasis sample because the
+skin sound model only has three sound classes.
 
 The bottom-row `T9`, symbol, and language commands should stay visually
 unframed, like the regular compact control row. Tune their fixed cell widths so

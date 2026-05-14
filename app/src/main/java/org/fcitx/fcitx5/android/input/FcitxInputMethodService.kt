@@ -130,8 +130,11 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
         hideEqualsChoice = { inputView?.hideNumberEqualsChoice() }
     )
 
-    private fun isPasswordInputPreviewActive(): Boolean =
+    private fun isTemporaryPasswordKeyboardVisible(): Boolean =
         inputView?.isTemporaryPasswordKeyboardVisible() == true
+
+    private fun isPasswordInputPreviewActive(): Boolean =
+        passwordInputPreviewEnabled && isTemporaryPasswordKeyboardVisible()
 
     fun clearPasswordInputPreview() {
         if (passwordInputPreviewBuffer.isNotEmpty()) {
@@ -381,6 +384,8 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
     private val prefs = AppPrefs.getInstance()
     private val keyboardPrefs = prefs.keyboard
     private val inlineSuggestions by keyboardPrefs.inlineSuggestions
+    private val passwordInputPreviewEnabled by keyboardPrefs.passwordInputPreview
+    private val physicalKeySound by keyboardPrefs.physicalKeySound
     private val t9InputModeEnabled by keyboardPrefs.useT9KeyboardLayout
     private val ignoreSystemCursor by prefs.advanced.ignoreSystemCursor
 
@@ -446,6 +451,12 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
         replaceInputViews(ThemeManager.activeTheme)
     }
 
+    @Keep
+    private val passwordInputPreviewChangeListener =
+        ManagedPreference.OnChangeListener<Boolean> { _, enabled ->
+            if (!enabled) clearPasswordInputPreview()
+        }
+
     /**
      * Post a fcitx operation to [jobs] to be executed
      *
@@ -476,6 +487,7 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
             it.registerOnChangeListener(recreateInputViewListener)
         }
         prefs.keyboard.inputUiFont.registerOnChangeListener(recreateInputViewsListener)
+        keyboardPrefs.passwordInputPreview.registerOnChangeListener(passwordInputPreviewChangeListener)
         prefs.candidates.registerOnChangeListener(recreateCandidatesViewListener)
         ThemeManager.addOnChangedListener(onThemeChangeListener)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
@@ -3098,10 +3110,24 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
         return handled
     }
 
+    private fun playPhysicalKeySound(keyCode: Int, event: KeyEvent) {
+        if (!physicalKeySound) return
+        if (event.action != KeyEvent.ACTION_DOWN || event.repeatCount != 0) return
+        val effect = when (keyCode) {
+            KeyEvent.KEYCODE_DEL, KeyEvent.KEYCODE_BACK,
+            KeyEvent.KEYCODE_FORWARD_DEL -> InputFeedbacks.SoundEffect.Delete
+            KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_NUMPAD_ENTER -> InputFeedbacks.SoundEffect.Return
+            KeyEvent.KEYCODE_SPACE, KeyEvent.KEYCODE_DPAD_CENTER -> InputFeedbacks.SoundEffect.SpaceBar
+            else -> InputFeedbacks.SoundEffect.Standard
+        }
+        InputFeedbacks.soundEffect(effect)
+    }
+
     override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {
         if (inputDeviceMgr.isPassthroughInput) {
             return super.onKeyDown(keyCode, event)
         }
+        playPhysicalKeySound(keyCode, event)
         if (handleNumberTransientPanelKeyDown(keyCode, event)) {
             return true
         }
@@ -3109,7 +3135,7 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
             return true
         }
         if (event.action == KeyEvent.ACTION_DOWN &&
-            isPasswordInputPreviewActive() &&
+            isTemporaryPasswordKeyboardVisible() &&
             keyCode in t9FocusLeftKeyCodes + t9FocusRightKeyCodes
         ) {
             handleArrowKey(keyCode)
@@ -3846,6 +3872,7 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
             it.unregisterOnChangeListener(recreateInputViewListener)
         }
         prefs.keyboard.inputUiFont.unregisterOnChangeListener(recreateInputViewsListener)
+        keyboardPrefs.passwordInputPreview.unregisterOnChangeListener(passwordInputPreviewChangeListener)
         prefs.candidates.unregisterOnChangeListener(recreateCandidatesViewListener)
         ThemeManager.removeOnChangedListener(onThemeChangeListener)
         super.onDestroy()

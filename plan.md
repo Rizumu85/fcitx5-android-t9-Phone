@@ -215,6 +215,24 @@ Rizum Guidelines are active for this project/thread until the user says otherwis
 - [x] Match password preview radius/shadow to the existing input and candidate UI.
 - [x] Add a local preview cursor that follows left/right movement.
 - [x] Run a narrow Kotlin compile check for the password preview polish.
+- [x] Add a default-on keyboard setting for the password-mode text preview.
+- [x] Gate password preview buffering/display behind the new setting.
+- [x] Run a narrow Kotlin compile check for the password preview setting.
+- [x] Diagnose why the app-owned key-sound path became silent.
+- [x] Extract and analyze the imported Baidu `.bds` key-sound assets.
+- [x] Retune synthesized key sounds from the BDS `aj`/`ajgn`/`ajhc` structure.
+- [x] Run a narrow Kotlin compile check for the key-sound fix.
+- [x] Build, install, and select the updated debug IME for device sound testing.
+- [x] Diagnose why the first BDS-derived synthesis still sounded unlike previews.
+- [x] Make the synthesized sounds noise/transient-led instead of resonator-led.
+- [x] Classify physical Space and T9 `DPAD_CENTER` as the Space/function sound style.
+- [x] Run a narrow Kotlin compile check for the key-sound style correction.
+- [x] Build, install, and select the updated debug IME for retesting.
+- [x] Decide to use direct BDS-derived sample playback instead of further synthesis.
+- [x] Extract and decode the three BDS sound classes for each style into raw WAV resources.
+- [x] Replace synthesized `AudioTrack` playback with `SoundPool` sample playback.
+- [x] Run a narrow Kotlin compile check for direct sample playback.
+- [x] Build, install, and select the updated debug IME for sample retesting.
 
 - [x] Connect the GitHub repository through the GitHub plugin.
 - [x] Bump app and Gradle version metadata to `3.0.1`.
@@ -258,6 +276,18 @@ Rizum Guidelines are active for this project/thread until the user says otherwis
 - [x] Constrain in-IME status/settings labels to each grid cell width.
 - [x] Allow compact centered wrapping for crowded five-column labels.
 - [x] Run a narrow static diff check for the label wrapping tweak.
+- [x] Diagnose why enabled key sound does not play for physical T9 keys.
+- [x] Route physical key-down feedback through the existing sound preference.
+- [x] Run a narrow Kotlin compile check and install for key-sound retesting.
+- [x] Diagnose silent on-screen key sounds with app sound enabled.
+- [x] Make explicit key-sound enabled mode independent from muted system sound effects.
+- [x] Run a narrow Kotlin compile check and install for app-owned key sound.
+- [x] Add a default-on setting to include physical keys in key sounds.
+- [x] Add selectable key-sound styles with per-key sound variation.
+- [x] Run a narrow Kotlin compile check and install for key-sound settings.
+- [x] Inspect imported Baidu `.bds` key-sound resources and mappings.
+- [x] Replace ToneGenerator styles with synthesized Baidu-like transient clicks.
+- [x] Run a narrow Kotlin compile check and install the synthesized key sounds.
 - [x] Restore the regular virtual keyboard portrait height default to 40%.
 - [x] Make the in-IME status/settings option grid use five columns.
 - [x] Run a narrow static diff check for the default/layout tweak.

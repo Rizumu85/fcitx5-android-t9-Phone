@@ -120,6 +120,67 @@ letter-key swipe symbols.
   not a separate card. Reuse the input panel radius and the Chinese candidate
   bubble shadow. The local preview also needs a cursor; left/right cursor
   movement should update both the target editor and the local preview cursor.
+- Password preview preference follow-up: the IME-local password preview is
+  useful as a default safety net, but it shows sensitive typed content. Add a
+  default-on keyboard setting directly under the password toolbar number-row
+  setting so users can disable the preview without affecting password mode
+  itself.
+- Physical key sound finding: on-screen keys call `InputFeedbacks.soundEffect`
+  from `CustomGestureView.ACTION_DOWN`, but physical T9 keys enter through
+  `FcitxInputMethodService.onKeyDown()` and never reach that touch handler.
+  The sound preference can therefore appear enabled while physical key presses
+  stay silent.
+- Device audio finding: the existing sound path uses
+  `AudioManager.playSoundEffect`, which is tied to Android's system sound-effect
+  stream. On the test device, `STREAM_SYSTEM` is muted even though the app
+  preference can be set to enabled, so both on-screen and physical keys stay
+  silent. The app's explicit `Enabled` mode should use an app-owned sonification
+  path; only `FollowingSystem` should depend on system key-sound settings.
+- Key-sound preference follow-up: users may want screen keys to make sound
+  while physical keys stay quiet. Add a default-on physical-key sound switch
+  beneath the existing key-sound controls. Also add a key-sound style list so
+  the explicit app-owned sound path can offer a few short tone profiles, with
+  slightly different tones for ordinary keys, Space, Delete, and Return.
+- Baidu skin sound finding: the imported `.bds` files are malformed ZIPs for
+  standard extractors, but the local deflate streams can still be read. The
+  three skins provide only three key sound files per style and map keys through
+  `SOUND_STYLE=80/81/82`: ordinary letters and digits mostly use 80, bottom-row
+  function keys and Space mostly use 81, and Delete/emphasis keys use 82. The
+  shipped audio is short MP3/AAC under misleading `.ogg` names, roughly
+  180-340 ms with tails. Recreate this structure with app-synthesized short
+  transients instead of bundling the original audio.
+- Key-sound silence follow-up: the app-owned `AudioTrack` path could fail
+  before playback because a static track was paused, flushed, and reloaded even
+  when it was not already playing; the resulting `IllegalStateException` was
+  swallowed and `play()` was skipped. The explicit app-owned sound path should
+  rewind a static track by stopping it only when it is currently playing, then
+  set the playback head to zero and play. It should also use media-routing
+  audio attributes so the explicit app setting is not muted by Android's system
+  sound-effect stream.
+- BDS sound-analysis follow-up: decoded skin audio confirms that the three skin
+  styles are not simple beeps. `Muffled` has low resonances around
+  260-760 Hz with a long soft tail, `Mechanical` has a brighter double-tap
+  transient around 1-7 kHz, and `Crisp` has a shorter high transient with
+  strongest early energy around 760-1450 Hz. The synthesized app sounds should
+  use those approximate durations and resonator groups for the three
+  `SOUND_STYLE`-like key classes.
+- Key-sound likeness follow-up: the first BDS-derived synthesis still sounded
+  unlike the skin preview because it over-weighted clean sine resonators. BDS
+  key sounds read more like short sampled noise/transient clicks with only
+  subtle tonal color. The synthesized path should keep the BDS-derived
+  durations and frequency groups, but make noise/envelope the dominant part and
+  keep resonators quiet.
+- Physical-space sound bug: physical key sounds were chosen before the service
+  remapped T9 input-mode keys, and the sound classifier did not include
+  `KEYCODE_SPACE` or the phone's `DPAD_CENTER -> SPACE` path. Physical Space
+  therefore used the ordinary-key style instead of the Space/function style.
+- Direct-sample decision: synthetic reconstruction still does not match online
+  skin previews closely enough because the preview sound is the actual skin
+  sample, including its recording/noise/compression characteristics. Technically
+  the reliable implementation is to decode the BDS `aj`, `ajgn`, and `ajhc`
+  audio into small mono WAV resources and play them through `SoundPool`.
+  `Return` can share the BDS emphasis/delete sample because the skin only
+  provides three sound classes.
 
 ## Temporary Full Keyboard Mode
 

@@ -202,6 +202,7 @@
     <string name="notification_permission_message">尚未賦予通知權限，因此無法在耗時較長的操作完成後給您發送通知。</string>
     <string name="notification_permission_title">沒有通知權限</string>
     <string name="toolbar_num_row_on_password">輸入密碼時在工具欄上顯示數字列</string>
+    <string name="password_input_preview">密碼模式顯示輸入預覽</string>
     <string name="space_long_press_behavior">空格鍵長按行為</string>
     <string name="space_behavior_none">無</string>
     <string name="space_behavior_enumerate">輪換輸入法</string>
@@ -245,6 +246,11 @@
     <string name="following_system_settings">跟隨系統設定</string>
     <string name="button_sound">按鍵音</string>
     <string name="button_sound_volume">按鍵音音量</string>
+    <string name="key_sound_style">按鍵音風格</string>
+    <string name="key_sound_style_muffled">悶</string>
+    <string name="key_sound_style_mechanical">機械</string>
+    <string name="key_sound_style_crisp">清脆</string>
+    <string name="physical_key_sound">實體鍵也播放按鍵音</string>
     <string name="clipboard_return_after_paste">貼上後返回</string>
     <string name="theme_message_follow_system_day_night_mode_enabled">已設定「依據系統設定主題色調」，無法手動切換主題。</string>
     <string name="disable_it">停用此項</string>
