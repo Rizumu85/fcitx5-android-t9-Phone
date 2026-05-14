@@ -31,7 +31,12 @@ object InputFeedbacks {
     enum class KeySoundStyle(override val stringRes: Int) : ManagedPreferenceEnum {
         Muffled(R.string.key_sound_style_muffled),
         Mechanical(R.string.key_sound_style_mechanical),
-        Crisp(R.string.key_sound_style_crisp);
+        Crisp(R.string.key_sound_style_crisp),
+        MeowMuffled(R.string.key_sound_style_meow_muffled),
+        MeowCrisp(R.string.key_sound_style_meow_crisp),
+        BlackWhiteCute(R.string.key_sound_style_black_white_cute),
+        BlackWhiteCrisp(R.string.key_sound_style_black_white_crisp),
+        BlackWhiteMuffled(R.string.key_sound_style_black_white_muffled);
     }
 
     private var systemSoundEffects = false
@@ -177,6 +182,31 @@ object InputFeedbacks {
                 SoundEffect.SpaceBar -> R.raw.key_crisp_space
                 SoundEffect.Delete, SoundEffect.Return -> R.raw.key_crisp_delete
             }
+            KeySoundStyle.MeowMuffled -> when (effect) {
+                SoundEffect.Standard -> R.raw.key_meow_muffled_standard
+                SoundEffect.SpaceBar -> R.raw.key_meow_muffled_space
+                SoundEffect.Delete, SoundEffect.Return -> R.raw.key_meow_muffled_delete
+            }
+            KeySoundStyle.MeowCrisp -> when (effect) {
+                SoundEffect.Standard -> R.raw.key_meow_crisp_standard
+                SoundEffect.SpaceBar -> R.raw.key_meow_crisp_space
+                SoundEffect.Delete, SoundEffect.Return -> R.raw.key_meow_crisp_delete
+            }
+            KeySoundStyle.BlackWhiteCute -> when (effect) {
+                SoundEffect.Standard -> R.raw.key_bw_cute_standard
+                SoundEffect.SpaceBar -> R.raw.key_bw_cute_space
+                SoundEffect.Delete, SoundEffect.Return -> R.raw.key_bw_cute_delete
+            }
+            KeySoundStyle.BlackWhiteCrisp -> when (effect) {
+                SoundEffect.Standard -> R.raw.key_bw_crisp_standard
+                SoundEffect.SpaceBar -> R.raw.key_bw_crisp_space
+                SoundEffect.Delete, SoundEffect.Return -> R.raw.key_bw_crisp_delete
+            }
+            KeySoundStyle.BlackWhiteMuffled -> when (effect) {
+                SoundEffect.Standard -> R.raw.key_bw_muffled_standard
+                SoundEffect.SpaceBar -> R.raw.key_bw_muffled_space
+                SoundEffect.Delete, SoundEffect.Return -> R.raw.key_bw_muffled_delete
+            }
         }
     }
 
@@ -237,6 +267,11 @@ object InputFeedbacks {
         } else {
             audioManager.playSoundEffect(fx, volume / 100f)
         }
+    }
+
+    fun previewSoundEffect(effect: SoundEffect) {
+        val volume = soundOnKeyPressVolume.takeIf { it > 0 } ?: 50
+        playAppSoundEffect(effect, volume)
     }
 
 }

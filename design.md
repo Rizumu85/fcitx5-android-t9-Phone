@@ -218,8 +218,27 @@ sound class.
 If synthetic reconstruction still feels wrong, prefer the direct-sample path:
 decode the user-provided BDS `aj`, `ajgn`, and `ajhc` assets into small mono WAV
 resources and play them with `SoundPool`. This preserves the actual skin timbre
+The keyboard settings page should include a non-persistent preview action next
+to the key-sound style setting. It should play through the app-owned sample
+path using the currently selected style and volume, independent of whether
+keypress sound is currently enabled, so users can audition a style before
+committing to it. The preview UI should expose exactly the three mapping classes
+the runtime uses: ordinary, Space/function, and Delete/Return.
+Keep the preview action directly below the key-sound style row by assigning
+explicit preference order values rather than relying on add/remove order. Render
+the preview dialog as themed selectable list rows with standard text
+appearances and tinted icons, matching the rest of the settings UI.
 and keeps latency low; `Return` shares the delete/emphasis sample because the
 skin sound model only has three sound classes.
+Additional purchased skin sounds should be added as distinct `KeySoundStyle`
+entries with skin-specific names instead of reusing generic `Crisp` or
+`Muffled`. This keeps persisted preferences unambiguous and lets users compare
+old and new sound packs directly.
+For BDS sound packs that use numbered style classes instead of the older
+`aj/ajgn/ajhc` names, keep the original class mapping when it is explicit in
+the skin CSS/config. For the black/white filter packs, use `349 -> aj1` for
+ordinary keys, `350 -> aj2` for Space/function keys, and `351 -> aj3` for
+Delete/Return/emphasis keys.
 
 The bottom-row `T9`, symbol, and language commands should stay visually
 unframed, like the regular compact control row. Tune their fixed cell widths so

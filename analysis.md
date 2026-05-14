@@ -181,6 +181,28 @@ letter-key swipe symbols.
   audio into small mono WAV resources and play them through `SoundPool`.
   `Return` can share the BDS emphasis/delete sample because the skin only
   provides three sound classes.
+- New Meow skin sound finding: the purchased English and Korean variants have
+  identical audio for the same crisp/muffled style. Their differences are only
+  keyboard-image resources and preview metadata, so the app can use the English
+  crisp and English muffled packages as the sound source. These should be added
+  as new named sound-style options instead of replacing the existing crisp and
+  muffled options.
+- Black/white filter sound finding: the purchased Android BDS packages
+  `可爱1`, `脆1`, and `闷1` are extractable and use `SOUND_STYLE=349/350/351`
+  with files `aj1/aj2/aj3`. These map cleanly to ordinary, function/space, and
+  emphasis/delete classes. Add them as distinct `KeySoundStyle` entries named
+  black/white cute, black/white crisp, and black/white muffled.
+- Key-sound preview follow-up: choosing between imported sound styles is hard
+  from names alone. The keyboard settings page should provide a quick local
+  preview for the three sound classes used by every style: ordinary keys,
+  Space/function keys, and Delete/Return emphasis keys.
+- Key-sound preview polish: `PreferenceScreen` sorts entries by `Preference`
+  order, so removing and re-adding trailing preferences can still leave the
+  preview action in the wrong visual position. Insert the preview by adjusting
+  preference order values. The preview dialog should also use themed list rows
+  instead of plain platform buttons. The original synthesized styles should
+  carry a small `Mini` / `小小` prefix so they do not read like the imported
+  skin-sample styles.
 
 ## Temporary Full Keyboard Mode
 

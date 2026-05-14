@@ -233,6 +233,16 @@ Rizum Guidelines are active for this project/thread until the user says otherwis
 - [x] Replace synthesized `AudioTrack` playback with `SoundPool` sample playback.
 - [x] Run a narrow Kotlin compile check for direct sample playback.
 - [x] Build, install, and select the updated debug IME for sample retesting.
+- [x] Compare English and Korean variants of the new Meow BDS sound packs.
+- [x] Choose the English crisp and English muffled packages as sound sources.
+- [x] Add distinct Meow key-sound style options and resources.
+- [x] Run a narrow Kotlin compile check for the Meow sound styles.
+- [x] Build, install, and select the updated debug IME for retesting.
+- [x] Inspect black/white filter BDS packages and map `349/350/351` to `aj1/aj2/aj3`.
+- [x] Extract and add black/white cute, crisp, and muffled sound resources.
+- [x] Add distinct black/white key-sound style options.
+- [x] Run a narrow Kotlin compile check for the black/white sound styles.
+- [x] Build, install, and select the updated debug IME for retesting.
 
 - [x] Connect the GitHub repository through the GitHub plugin.
 - [x] Bump app and Gradle version metadata to `3.0.1`.
@@ -649,3 +659,17 @@ Rizum Guidelines are active for this project/thread until the user says otherwis
 - [x] Run a narrow Kotlin compile check for the pinyin-row replacement.
 - [x] Remove the old RecyclerView delayed reveal from the synchronous pinyin row.
 - [x] Run a narrow Kotlin compile check for the immediate pinyin-row reveal.
+
+## Key Sound Preview Follow-up
+
+- [x] Document the need for a quick three-class key-sound preview.
+- [x] Add an app-owned preview playback entry point for the selected key-sound style.
+- [x] Add a keyboard-settings preview action with ordinary, Space/function, and Delete/Return buttons.
+- [x] Run a narrow Kotlin compile check for the settings preview.
+- [x] Build, install, and select the updated debug IME for retesting.
+- [x] Document key-sound preview placement and UI polish follow-up.
+- [x] Keep the preview setting directly below key-sound style using explicit preference order.
+- [x] Replace preview dialog buttons with themed selectable rows.
+- [x] Rename the original synthesized styles with a Mini / 小小 prefix.
+- [x] Run a narrow Kotlin compile check for the preview polish.
+- [x] Build, install, and select the updated debug IME for retesting.
