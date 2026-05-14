@@ -8,6 +8,46 @@ controls, and a readable keyboard surface.
 
 ## Current Task Design
 
+Tune Chinese T9 floating candidate shadows so the compact top-reading bubble
+does not create a dark seam against the lower pinyin/Hanzi bubble.
+
+## Chinese T9 Shadow Design
+
+Keep the top-reading bubble's normal platform elevation, because its downward
+shadow gives the small reading row useful depth. Keep the lower pinyin/Hanzi
+bubble as a direct elevated surface too. Do not wrap it in a clipping container:
+the hard-clipped left blur is more visually disruptive than the natural overlap
+between the two soft shadows.
+
+Reserve shadow outsets on the candidate popup container itself, then offset the
+popup position by the same amount so the visible bubble location remains stable.
+This gives elevation shadows room to blur on the left, right, and bottom without
+moving the candidate bubbles away from the text cursor.
+
+## 4.0.0 Release Design
+
+Set the release version name to `4.0.0` through the existing Gradle property
+and fallback build-logic constant, and bump the ABI-derived base version code
+for install/release compatibility. Document the release in the README as a
+user-facing feature summary. The README should not mention low-level
+state-machine fixes unless they explain a visible workflow; describe them as
+smoother password mode, candidate display, and physical-key behavior instead.
+
+## 4.0.0 README Design
+
+Keep the 4.0.0 README section near the top so release users can quickly see why
+this build matters before the detailed key tables. Cover only features the user
+can perceive:
+
+- Password mode from the three-dot panel and automatic password-field entry.
+- Local password input preview, physical-key sync, and hold-to-peek.
+- Improved Chinese T9 candidate display and physical-key shortcuts.
+- Key-sound styles, physical-key sound control, and sound preview.
+- Theme/UI polish such as input panel top radius, clearer shadows, and the
+  dictionary-switch status entry.
+
+## Password Mode Design
+
 Make password input fields use the existing full on-screen QWERTY keyboard
 surface, while preserving the user's normal T9/26-key preference outside
 password fields.

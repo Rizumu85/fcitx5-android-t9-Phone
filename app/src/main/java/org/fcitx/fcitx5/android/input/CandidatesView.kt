@@ -820,9 +820,9 @@ class CandidatesView(
         prefixes: List<String>
     ): T9MatchedCandidates {
         prefixes.forEach { prefix ->
-            val matches = candidates.filter {
+            val matches = dedupeT9DisplayCandidates(candidates.filter {
                 service.candidateMatchesT9ResolvedPrefix(it.value, prefix)
-            }
+            })
             if (matches.isNotEmpty()) {
                 return T9MatchedCandidates(prefix, matches)
             }
@@ -848,7 +848,7 @@ class CandidatesView(
         data: FcitxEvent.PagedCandidateEvent.Data
     ): FcitxEvent.PagedCandidateEvent.Data? {
         if (data.candidates.isEmpty()) return null
-        val indexedCandidates = data.candidates.withIndex().toList()
+        val indexedCandidates = dedupeT9DisplayCandidates(data.candidates.withIndex().toList())
         val signature = buildT9CandidateSignature(data)
         if (signature != t9LocalBudgetSignature) {
             t9LocalBudgetSignature = signature
@@ -1006,7 +1006,7 @@ class CandidatesView(
                     parseBulkCandidate(raw)?.let { IndexedValue(index, it) }
                 }
             val filtered = if (prefixes.isEmpty()) {
-                T9MatchedCandidates(null, parsedCandidates)
+                T9MatchedCandidates(null, dedupeT9DisplayCandidates(parsedCandidates))
             } else {
                 matchT9Candidates(parsedCandidates, prefixes)
             }
@@ -1043,6 +1043,16 @@ class CandidatesView(
         t9LocalBudgetedAllCandidates = emptyList()
         t9LocalBudgetedPageIndex = 0
         t9ShownUsesLocalBudget = false
+    }
+
+    private fun dedupeT9DisplayCandidates(
+        candidates: List<IndexedValue<FcitxEvent.Candidate>>
+    ): List<IndexedValue<FcitxEvent.Candidate>> {
+        if (candidates.size < 2) return candidates
+        val seen = HashSet<String>(candidates.size)
+        return candidates.filter { (_, candidate) ->
+            seen.add(candidate.text)
+        }
     }
 
     private fun parseBulkCandidate(raw: String): FcitxEvent.Candidate? {
@@ -1167,6 +1177,9 @@ class CandidatesView(
     /** Horizontal gap from screen edge so the bubble doesn't touch left/right. */
     private val horizontalMarginPx: Int get() = dp(horizontalMargin)
 
+    /** Extra bounds reserved for elevation shadows outside the visible bubble surface. */
+    private val candidateShadowOutsetPx: Int get() = dp(12)
+
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         // Enforce maxWidth so total width never exceeds (parent - 2*margin); ViewGroup does not do this by default
         val maxW = if (maxWidth > 0) maxWidth else Int.MAX_VALUE
@@ -1203,7 +1216,9 @@ class CandidatesView(
         val (parentWidth, parentHeight) = parentSize
         val marginPx = horizontalMarginPx
         if (parentWidth > 0) {
-            val maxW = (parentWidth - 2 * marginPx).toInt().coerceAtLeast(minWidth)
+            val shadowOutset = candidateShadowOutsetPx
+            val windowMargin = (marginPx - shadowOutset).coerceAtLeast(0)
+            val maxW = (parentWidth - 2 * windowMargin).toInt().coerceAtLeast(minWidth)
             if (maxWidth != maxW) {
                 maxWidth = maxW
                 requestLayout()
@@ -1226,7 +1241,7 @@ class CandidatesView(
         val w: Int = width
         val h: Int = height
         val selfHeight = h.toFloat()
-        val tX: Float = marginPx.toFloat()
+        val tX: Float = (marginPx - candidateShadowOutsetPx).coerceAtLeast(0).toFloat()
         val bottomLimit = parentHeight - bottomInsets
         val bottomSpace = bottomLimit - bottom
         // move CandidatesView above cursor anchor, only when
@@ -1267,7 +1282,9 @@ class CandidatesView(
         visibility = INVISIBLE
 
         minWidth = dp(windowMinWidth)
-        padding = 0
+        val shadowOutset = candidateShadowOutsetPx
+        setPadding(shadowOutset, 0, shadowOutset, shadowOutset)
+        contentWrapper.translationX = -(shadowOutset - horizontalMarginPx).coerceAtLeast(0).toFloat()
         clipChildren = false
         clipToPadding = false
         setBackgroundColor(Color.TRANSPARENT)

@@ -6,6 +6,28 @@ Rizum Guidelines are active for this project/thread until the user says otherwis
 
 ## Current Checklist
 
+- [x] Diagnose the Chinese T9 top-reading/lower-candidate shadow overlap.
+- [x] Lighten the top-reading bubble shadow while keeping the lower candidate shadow.
+- [x] Run a narrow Kotlin compile check for the shadow tuning.
+- [x] Build, install, and screenshot-check the shadow overlap on device.
+- [x] Document the preferred topReading-keeps-shadow direction.
+- [x] Probe the repeated `iCloud` candidate issue on device.
+- [x] Add T9 visible-candidate de-duplication for repeated display text.
+- [x] Identify the lower-bubble side-shadow clipping artifact.
+- [x] Remove the lower-candidate clipping wrapper that caused the hard side edge.
+- [x] Run a narrow Kotlin compile check for the shadow correction.
+- [x] Build, install, and screenshot-check the shadow correction on device.
+- [x] Confirm the correct debug IME component for screenshot checks.
+- [x] Add popup-level shadow outsets so left-side elevation blur is not clipped.
+- [x] Run a narrow Kotlin compile check for popup shadow outsets.
+- [x] Install debug APK, switch to the debug IME component, and screenshot-check again.
+
+- [x] Document 4.0.0 release-prep scope.
+- [x] Update Gradle release version name to 4.0.0.
+- [x] Bump fallback build-logic version name and ABI base version code.
+- [x] Add user-facing 4.0.0 feature notes to README.
+- [x] Run a narrow verification for release metadata/docs changes.
+
 - [x] Document the Rime status fallback and empty submenu-label issue.
 - [x] Rename the empty Rime status fallback to dictionary switching.
 - [x] Hide action-menu rows that do not have real Fcitx-provided text.

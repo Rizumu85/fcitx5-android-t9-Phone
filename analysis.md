@@ -2,6 +2,49 @@
 
 ## Current Task
 
+Reduce Chinese T9 floating candidate shadow overlap between the top-reading
+bubble and the lower pinyin/Hanzi bubble.
+
+## Chinese T9 Shadow Overlap Follow-up
+
+- Device screenshot shows the top-reading bubble's lower platform shadow
+  landing on the lower pinyin/Hanzi bubble's top edge. Because both bubbles use
+  the same strong elevation shadow, their shadows overlap and create a darker
+  visible line between the two bubbles.
+- User preference after the first fix: keep the top-reading bubble's original
+  downward shadow, and instead remove the lower pinyin/Hanzi bubble's upward
+  shadow where it overlaps the top-reading shadow.
+- Follow-up correction: the harsh seam is not mainly caused by top/bottom
+  shadow overlap. It is caused by the lower bubble's left-side blur being
+  clipped by the wrapper, so the soft shadow stops abruptly and reads like a
+  solid gray strip between the two bubbles.
+- Debug-package correction: after each debug install the selected input method
+  must be `org.fcitx.fcitx5.android.debug/org.fcitx.fcitx5.android.input.FcitxInputMethodService`.
+  Selecting the release package can show the pink release theme and invalidate
+  screenshot checks.
+- Root cause refinement: the candidate popup view itself also tightly wrapped
+  the bubble content. Android elevation shadows extend outside the bubble
+  background, so the popup bounds need explicit horizontal/bottom shadow
+  outsets; otherwise the left-side blur is clipped at the popup edge.
+- Success criteria: the top-reading row should keep its previous visible
+  downward shadow, while the lower pinyin/Hanzi bubble should keep an
+  uninterrupted soft side shadow without a clipped left edge.
+
+## 4.0.0 Release Prep
+
+- The formal APK should report version name `4.0.0`. This project derives the
+  Android `versionName` from `buildVersionName` in `gradle.properties`, falling
+  back to `Versions.baseVersionName` when no override is provided.
+- The release should also bump `Versions.baseVersionCode` so formal APKs can be
+  installed over 3.0.1 and accepted by release channels.
+- README updates should focus on user-visible additions rather than internal
+  debugging, restoration guards, or performance implementation details.
+- User-visible 4.0.0 highlights include password mode, password input preview
+  and peek, physical-key preview synchronization, improved key sounds and
+  previews, candidate/UI polish, and the clearer dictionary-switch status entry.
+
+## Password Mode History
+
 Make password fields automatically show a password-friendly on-screen keyboard:
 the existing 26-key QWERTY layout, the existing top number row, and the existing
 letter-key swipe symbols.
