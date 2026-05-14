@@ -20,6 +20,8 @@ import com.google.android.flexbox.FlexWrap
 import com.google.android.flexbox.FlexboxLayoutManager
 import org.fcitx.fcitx5.android.core.FcitxEvent
 import org.fcitx.fcitx5.android.core.FcitxEvent.PagedCandidateEvent.LayoutHint
+import org.fcitx.fcitx5.android.data.prefs.AppPrefs
+import org.fcitx.fcitx5.android.data.prefs.ManagedPreference
 import org.fcitx.fcitx5.android.data.theme.Theme
 import kotlin.math.roundToInt
 import splitties.dimensions.dp
@@ -42,6 +44,20 @@ class PagedCandidatesUi(
     private var isVertical = false
     private var highlightActive = true
     private var showShortcutLabels = false
+    private val t9InputModeEnabledPref = AppPrefs.getInstance().keyboard.useT9KeyboardLayout
+
+    @Volatile
+    private var t9InputModeEnabled = t9InputModeEnabledPref.getValue()
+
+    private val t9InputModeEnabledChangeListener =
+        ManagedPreference.OnChangeListener<Boolean> { _, value ->
+            t9InputModeEnabled = value
+        }
+
+    init {
+        t9InputModeEnabledPref.registerOnChangeListener(t9InputModeEnabledChangeListener)
+    }
+
     private val highlightOverflowPaddingPx =
         (highlightCornerRadiusPx * 0.35f).roundToInt().coerceAtLeast(ctx.dp(2))
 
@@ -88,6 +104,7 @@ class PagedCandidatesUi(
                         candidate,
                         active = highlightActive && position == data.cursorIndex,
                         inactiveRow = !highlightActive,
+                        t9InputModeEnabled = t9InputModeEnabled,
                         shortcutLabel = if (showShortcutLabels) shortcutLabelForPosition(position) else null
                     )
                     holder.ui.root.setOnClickListener {

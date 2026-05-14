@@ -17,7 +17,6 @@ import android.widget.TextView
 import androidx.core.text.buildSpannedString
 import androidx.core.text.color
 import org.fcitx.fcitx5.android.core.FcitxEvent
-import org.fcitx.fcitx5.android.data.prefs.AppPrefs
 import org.fcitx.fcitx5.android.data.theme.Theme
 import splitties.views.dsl.core.Ui
 import splitties.views.dsl.core.textView
@@ -29,7 +28,6 @@ class LabeledCandidateItemUi(
     private val highlightCornerRadiusPx: Int
 ) : Ui {
 
-    private val t9InputModeEnabled by AppPrefs.getInstance().keyboard.useT9KeyboardLayout
     private val activeBackground = GradientDrawable().apply {
         setColor(theme.genericActiveBackgroundColor)
         cornerRadius = highlightCornerRadiusPx.toFloat()
@@ -47,6 +45,7 @@ class LabeledCandidateItemUi(
         candidate: FcitxEvent.Candidate,
         active: Boolean,
         inactiveRow: Boolean = false,
+        t9InputModeEnabled: Boolean = false,
         shortcutLabel: String? = null
     ) {
         val candidateSignature = "${candidate.label}|${candidate.text}|${candidate.comment}"

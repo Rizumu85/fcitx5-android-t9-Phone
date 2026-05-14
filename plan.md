@@ -699,6 +699,10 @@ Rizum Guidelines are active for this project/thread until the user says otherwis
 - [x] Document candidate-binding preference caching.
 - [x] Cache the horizontal candidate adapter T9-layout flag.
 - [x] Run a narrow Kotlin compile check for candidate-binding caching.
+- [x] Document floating candidate item T9-layout caching.
+- [x] Move floating candidate T9-layout preference reads out of item binding.
+- [x] Run a narrow Kotlin compile check for floating candidate caching.
+- [x] Install and smoke-test the floating candidate caching change on device.
 
 ## Password Bottom Row Safety Follow-up
 

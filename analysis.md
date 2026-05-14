@@ -277,6 +277,14 @@ letter-key swipe symbols.
 - Success criteria: cache the horizontal candidate adapter's T9-layout flag so
   candidate binding avoids preference reads while preserving the existing
   comment-stripping behavior.
+- Next single-step target: floating candidate item binding has the same pattern.
+  `LabeledCandidateItemUi.update()` reads the T9-layout preference through a
+  delegate for every bound floating candidate row. The surrounding
+  `PagedCandidatesUi` is the stable owner for the candidate list, so it can
+  cache the flag once and pass it into each item bind.
+- Success criteria: floating candidate item binding should no longer read the
+  T9-layout preference directly, and candidate label/comment/shortcut rendering
+  should remain unchanged.
 
 ## Temporary Full Keyboard Mode
 

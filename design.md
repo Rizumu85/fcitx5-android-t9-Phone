@@ -278,6 +278,11 @@ Candidate adapters that consult layout preferences during bind should cache
 those flags with preference listeners. This keeps candidate row refreshes
 focused on text binding and avoids shared-preference reads in RecyclerView
 binding paths.
+For floating candidates, keep the cached T9-layout flag in the parent
+`PagedCandidatesUi` rather than registering a preference listener per item view.
+The parent already owns binding, orientation, and shortcut-label state, so it
+can pass the flag into `LabeledCandidateItemUi.update()` with no display
+semantic change.
 
 The bottom-row `T9`, symbol, and language commands should stay visually
 unframed, like the regular compact control row. Tune their fixed cell widths so
