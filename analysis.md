@@ -99,11 +99,12 @@ Build, install, stage, and publish the signed 4.0.0 formal release packages.
 - Signing credentials are not stored in the repository. If the local Gradle or
   shell environment does not provide the keystore password and alias, they must
   be supplied before a real signed release can be built.
-- Current blocker: the local release build accepts
-  `fcitx5-android-t9-phone.jks`, but `:plugin:rime:packageRelease` fails because
-  the signing config has no `storePassword`. The active shell/local Gradle
-  files do not expose `SIGN_KEY_PWD` or `signKeyPwd`, so the keystore password
-  is needed before signed APKs can be rebuilt and published.
+- Signing resolution: the keystore is stored one directory above the project at
+  `/Users/rizum/StudioProjects/fcitx5-android-t9-phone.jks`. The alias is
+  `key0`, matching Android Studio's signing wizard record. The signed release
+  build completed for both ARM ABIs, the arm64 app/plugin were installed on the
+  connected phone, and GitHub release `v4.0.0` was updated with the rebuilt APKs
+  and manual `.bds` key-sound import notes.
 
 ## Current Success Criteria
 

@@ -50,10 +50,10 @@ Rizum Guidelines are active for this project/thread until the user says otherwis
   manual Baidu Input Android `.bds` import.
 - [x] Update README and Baidu install/help files with the final key-sound
   behavior.
-- [ ] Build signed ARM release APKs for the app and Rime plugin.
-- [ ] Install the signed `arm64-v8a` app and Rime plugin on the connected phone.
-- [ ] Copy the four signed APKs into `release-baidu/v4.0.0`.
-- [ ] Replace GitHub release `v4.0.0` assets and notes with the final build.
+- [x] Build signed ARM release APKs for the app and Rime plugin.
+- [x] Install the signed `arm64-v8a` app and Rime plugin on the connected phone.
+- [x] Copy the four signed APKs into `release-baidu/v4.0.0`.
+- [x] Replace GitHub release `v4.0.0` assets and notes with the final build.
 
 ## Current Checklist
 
