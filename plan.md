@@ -9,13 +9,13 @@ Rizum Guidelines are active for this project/thread until the user says otherwis
 - [x] Document the formal release scope and success criteria.
 - [x] Resolve signing credentials for the formal `.jks` keystore.
 - [x] Update the Baidu installation help files for the 4.0.0 feature set.
-- [ ] Build signed app and Rime plugin release APKs for `arm64-v8a` and
+- [x] Build signed app and Rime plugin release APKs for `arm64-v8a` and
   `armeabi-v7a` only.
-- [ ] Verify the signed APK set and confirm no x86 artifacts are staged.
-- [ ] Install the formal app and Rime plugin on the connected phone.
-- [ ] Stage the four APKs under `release-baidu/v4.0.0`.
-- [ ] Create or update GitHub release `v4.0.0` with the four expected assets.
-- [ ] Verify the published release body and asset list.
+- [x] Verify the signed APK set and confirm no x86 artifacts are staged.
+- [x] Install the formal app and Rime plugin on the connected phone.
+- [x] Stage the four APKs under `release-baidu/v4.0.0`.
+- [x] Create or update GitHub release `v4.0.0` with the four expected assets.
+- [x] Verify the published release body and asset list.
 
 ## Current Checklist
 
